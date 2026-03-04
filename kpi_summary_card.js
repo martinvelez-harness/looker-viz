@@ -1,4 +1,4 @@
-**
+/**
  * KPI Summary Card -- Looker Custom Visualization
  *
  * Displays a total KPI value at the top with a breakdown grid below,
