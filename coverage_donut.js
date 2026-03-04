@@ -392,7 +392,7 @@ svg.appendChild(tVal);
 // Subtitle text
 var tSub = document.createElementNS(ns, "text");
 tSub.setAttribute("x", cx);
-tSub.setAttribute("y", cy + fzValue * 1.0);
+tSub.setAttribute("y", cy + (fzValue + 5) * 1.0);
 tSub.setAttribute("text-anchor", "middle");
 tSub.setAttribute("dominant-baseline", "central");
 tSub.setAttribute("font-size", fzSub);
@@ -428,7 +428,7 @@ if (showVariation && variationDelta !== null) {
   var varRow = document.createElement("div");
   varRow.style.display = "flex";
   varRow.style.alignItems = "center";
-  varRow.style.gap = "10px";
+  varRow.style.gap = "4px";
   varRow.style.fontSize = "12px";
   varRow.style.color = "#6B7280";
   varRow.style.fontFamily = "'Inter','Helvetica Neue',Arial,sans-serif";
