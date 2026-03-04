@@ -1,6 +1,6 @@
 /**
  * Coverage Donut — Looker Custom Visualization
- *  Harness
+ * Harness
  *
  * Renders a donut chart showing a coverage percentage with status badge
  * and optional period-over-period variation.
@@ -275,7 +275,7 @@ looker.plugins.visualizations.add({
     var rect = element.getBoundingClientRect();
     var elW = rect.width || 300;
     var elH = rect.height || 300;
-    var svgSize = Math.max(Math.min(elW * 0.72, elH * 0.55), 80);
+    var svgSize = Math.max(Math.min(elW * 0.88, elH * 0.72), 80);
     var cx = svgSize / 2;
     var cy = svgSize / 2;
     var r = (svgSize / 2) - (thickness / 2) - 4;
@@ -290,7 +290,7 @@ looker.plugins.visualizations.add({
     wrapper.style.flexDirection = "column";
     wrapper.style.alignItems = "center";
     wrapper.style.justifyContent = "center";
-    wrapper.style.gap = "10px";
+    wrapper.style.gap = "6px";
     wrapper.style.width = "100%";
     wrapper.style.height = "100%";
 
