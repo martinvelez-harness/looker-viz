@@ -428,7 +428,7 @@ if (showVariation && variationDelta !== null) {
   var varRow = document.createElement("div");
   varRow.style.display = "flex";
   varRow.style.alignItems = "center";
-  varRow.style.gap = "4px";
+  varRow.style.gap = "10px";
   varRow.style.fontSize = "12px";
   varRow.style.color = "#6B7280";
   varRow.style.fontFamily = "'Inter','Helvetica Neue',Arial,sans-serif";
