@@ -8,9 +8,9 @@
  * and shows each dimension value with its corresponding measure.
  *
  * Admin -> Visualizations:
- *   ID: kpi_summary_card
- *   Label: KPI Summary Card
- *   Main: https://cdn.jsdelivr.net/gh/martinvelez-harness/looker-viz@main/kpi_summary_card.js
+ * ID: kpi_summary_card
+ * Label: KPI Summary Card
+ * Main: https://cdn.jsdelivr.net/gh/martinvelez-harness/looker-viz@main/kpi_summary_card.js
  */
 
 looker.plugins.visualizations.add({
@@ -337,7 +337,6 @@ looker.plugins.visualizations.add({
   }
 
 });
-
 
 // ----------------------------------------------
 // Helpers
