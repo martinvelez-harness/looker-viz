@@ -1,7 +1,7 @@
 /**
 
 
-KPI Summary Card — Looker Custom Visualization
+KPI Summary Card – Looker Custom Visualization
 
 Displays a total KPI value at the top with a breakdown grid below,
 grouped by a dimension. Calculates the total automatically from query data.
@@ -9,7 +9,7 @@ grouped by a dimension. Calculates the total automatically from query data.
 Query: 1 dimension + 1 measure. The viz sums the measure for the total
 and shows each dimension value with its corresponding measure.
 
-Admin → Visualizations:
+Admin -> Visualizations:
 ID: kpi_summary_card
 Label: KPI Summary Card
 Main: https://cdn.jsdelivr.net/gh/martinvelez-harness/looker-viz@main/kpi_summary_card.js
@@ -137,9 +137,9 @@ font_family: {
 
 },
 
-// ──────────────────────────────────────────────
+// –––––––––––––––––––––––
 // CREATE
-// ──────────────────────────────────────────────
+// –––––––––––––––––––––––
 create: function (element, config) {
 element.innerHTML = “”;
 element.style.fontFamily = config.font_family || “‘Inter’,‘Helvetica Neue’,Arial,sans-serif”;
@@ -150,9 +150,9 @@ element.style.margin = “0”;
 element.style.boxSizing = “border-box”;
 },
 
-// ──────────────────────────────────────────────
+// –––––––––––––––––––––––
 // UPDATE
-// ──────────────────────────────────────────────
+// –––––––––––––––––––––––
 updateAsync: function (data, element, config, queryResponse, details, doneRendering) {
 element.innerHTML = “”;
 element.style.overflow = “hidden”;
@@ -173,7 +173,7 @@ if (!document.getElementById("_kpi_card_reset_css")) {
   document.head.appendChild(style);
 }
 
-// ── Validate ──
+// -- Validate --
 var dimensions = queryResponse.fields.dimension_like || queryResponse.fields.dimensions || [];
 var measures = queryResponse.fields.measure_like || [];
 if (measures.length === 0) {
@@ -199,7 +199,7 @@ this.clearErrors();
 var dimField = dimensions[0];
 var measureField = measures[0];
 
-// ── Config ──
+// -- Config --
 var fontFamily       = config.font_family || "'Inter','Helvetica Neue',Arial,sans-serif";
 var totalSubtitle    = config.total_subtitle || "Total";
 var totalFontSize    = Number(config.total_font_size) || 48;
@@ -214,7 +214,7 @@ var brkValueColor    = config.breakdown_value_color || "#111827";
 var showDivider      = config.show_divider !== "false";
 var fmtOverride      = (config.value_format_override || "").trim();
 
-// ── Process data ──
+// -- Process data --
 var total = 0;
 var breakdownItems = [];
 
@@ -222,7 +222,7 @@ for (var i = 0; i < data.length; i++) {
   var row = data[i];
   var dimCell = row[dimField.name];
   var measureCell = row[measureField.name];
-  var label = dimCell ? (dimCell.rendered || LookerCharts.Utils.textForCell(dimCell) || String(dimCell.value)) : "—";
+  var label = dimCell ? (dimCell.rendered || LookerCharts.Utils.textForCell(dimCell) || String(dimCell.value)) : "--";
   var val = measureCell ? Number(measureCell.value) || 0 : 0;
   total += val;
   breakdownItems.push({
@@ -233,14 +233,14 @@ for (var i = 0; i < data.length; i++) {
   });
 }
 
-// ── Format helper ──
+// -- Format helper --
 function formatVal(num, rendered) {
   if (fmtOverride) return formatNumber(num, fmtOverride);
   if (rendered) return rendered;
   return formatNumber(num, "#,##0");
 }
 
-// ── Build layout ──
+// -- Build layout --
 var container = document.createElement("div");
 container.style.fontFamily = fontFamily;
 container.style.padding = "20px 24px";
@@ -251,7 +251,7 @@ container.style.overflow = "hidden";
 container.style.display = "flex";
 container.style.flexDirection = "column";
 
-// ── Total section ──
+// -- Total section --
 var totalSection = document.createElement("div");
 totalSection.style.marginBottom = "4px";
 
@@ -272,7 +272,7 @@ totalSection.appendChild(totalSubEl);
 
 container.appendChild(totalSection);
 
-// ── Divider ──
+// -- Divider --
 if (showDivider) {
   var divider = document.createElement("div");
   divider.style.height = "1px";
@@ -281,7 +281,7 @@ if (showDivider) {
   container.appendChild(divider);
 }
 
-// ── Breakdown title ──
+// -- Breakdown title --
 if (breakdownTitle) {
   var brkTitleEl = document.createElement("div");
   brkTitleEl.style.fontSize = subtitleSize + "px";
@@ -291,7 +291,7 @@ if (breakdownTitle) {
   container.appendChild(brkTitleEl);
 }
 
-// ── Breakdown grid ──
+// -- Breakdown grid --
 var grid = document.createElement("div");
 grid.style.display = "grid";
 grid.style.gridTemplateColumns = "repeat(" + cols + ", 1fr)";
@@ -346,9 +346,9 @@ doneRendering();
 
 });
 
-// ──────────────────────────────────────────────
+// –––––––––––––––––––––––
 // Helpers
-// ──────────────────────────────────────────────
+// –––––––––––––––––––––––
 function formatNumber(val, fmt) {
 if (!fmt) return String(val);
 
