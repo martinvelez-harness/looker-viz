@@ -1,16 +1,18 @@
 /**
  * KPI Summary Card -- Looker Custom Visualization
  *
- * Displays a total KPI value at the top with a breakdown grid below,
- * grouped by a dimension. Calculates the total automatically from query data.
+ * Displays a total KPI value at the top with a breakdown below.
+ * Three breakdown layouts: Grid, List, Table.
+ * Configurable color thresholds for total and breakdown values.
  *
- * Query: 1 dimension + 1 measure. The viz sums the measure for the total
- * and shows each dimension value with its corresponding measure.
+ * Query: 1 dimension + 1..N measures.
+ *   - Grid/List: uses first measure
+ *   - Table: uses all measures as columns
  *
  * Admin -> Visualizations:
- * ID: kpi_summary_card
- * Label: KPI Summary Card
- * Main: https://cdn.jsdelivr.net/gh/martinvelez-harness/looker-viz@main/kpi_summary_card.js
+ *   ID: kpi_summary_card
+ *   Label: KPI Summary Card
+ *   Main: https://cdn.jsdelivr.net/gh/martinvelez-harness/looker-viz@main/kpi_summary_card.js
  */
 
 looker.plugins.visualizations.add({
@@ -19,7 +21,7 @@ looker.plugins.visualizations.add({
   label: "KPI Summary Card",
 
   options: {
-    // Total section
+    // -- Total --
     total_subtitle: {
       type: "string",
       label: "Total Subtitle",
@@ -29,7 +31,7 @@ looker.plugins.visualizations.add({
     },
     total_font_size: {
       type: "number",
-      label: "Total Value Font Size (px)",
+      label: "Value Font Size (px)",
       default: 48,
       section: "Total",
       order: 2
@@ -43,24 +45,49 @@ looker.plugins.visualizations.add({
     },
     total_color: {
       type: "string",
-      label: "Total Value Color",
+      label: "Value Color",
       default: "#111827",
       display: "color",
       section: "Total",
       order: 4
     },
-
-    // Breakdown section
-    breakdown_title: {
+    total_use_threshold: {
       type: "string",
-      label: "Breakdown Section Title",
-      default: "Breakdown by type",
+      label: "Apply Threshold to Total",
+      display: "select",
+      values: [
+        { "No": "false" },
+        { "Yes": "true" }
+      ],
+      default: "false",
+      section: "Total",
+      order: 5
+    },
+
+    // -- Breakdown --
+    breakdown_layout: {
+      type: "string",
+      label: "Layout",
+      display: "select",
+      values: [
+        { "Grid": "grid" },
+        { "List": "list" },
+        { "Table": "table" }
+      ],
+      default: "grid",
       section: "Breakdown",
       order: 1
     },
+    breakdown_title: {
+      type: "string",
+      label: "Section Title",
+      default: "Breakdown by type",
+      section: "Breakdown",
+      order: 2
+    },
     breakdown_columns: {
       type: "string",
-      label: "Columns per Row",
+      label: "Grid Columns",
       display: "select",
       values: [
         { "2": "2" },
@@ -69,21 +96,21 @@ looker.plugins.visualizations.add({
       ],
       default: "3",
       section: "Breakdown",
-      order: 2
+      order: 3
     },
     breakdown_label_size: {
       type: "number",
       label: "Label Font Size (px)",
       default: 14,
       section: "Breakdown",
-      order: 3
+      order: 4
     },
     breakdown_value_size: {
       type: "number",
       label: "Value Font Size (px)",
       default: 28,
       section: "Breakdown",
-      order: 4
+      order: 5
     },
     breakdown_label_color: {
       type: "string",
@@ -91,7 +118,7 @@ looker.plugins.visualizations.add({
       default: "#9CA3AF",
       display: "color",
       section: "Breakdown",
-      order: 5
+      order: 6
     },
     breakdown_value_color: {
       type: "string",
@@ -99,11 +126,11 @@ looker.plugins.visualizations.add({
       default: "#111827",
       display: "color",
       section: "Breakdown",
-      order: 6
+      order: 7
     },
-    show_divider: {
+    show_dot: {
       type: "string",
-      label: "Show Divider Line",
+      label: "Show Color Dot (Table)",
       display: "select",
       values: [
         { "Yes": "true" },
@@ -111,10 +138,74 @@ looker.plugins.visualizations.add({
       ],
       default: "true",
       section: "Breakdown",
+      order: 9
+    },
+
+    // -- Thresholds --
+    threshold_good: {
+      type: "number",
+      label: "Good >= (value)",
+      default: null,
+      section: "Thresholds",
+      order: 1
+    },
+    threshold_warning: {
+      type: "number",
+      label: "Warning >= (value)",
+      default: null,
+      section: "Thresholds",
+      order: 2
+    },
+    color_good: {
+      type: "string",
+      label: "Good Color",
+      default: "#22C55E",
+      display: "color",
+      section: "Thresholds",
+      order: 3
+    },
+    color_warning: {
+      type: "string",
+      label: "Warning Color",
+      default: "#F59E0B",
+      display: "color",
+      section: "Thresholds",
+      order: 4
+    },
+    color_danger: {
+      type: "string",
+      label: "Danger Color",
+      default: "#EF4444",
+      display: "color",
+      section: "Thresholds",
+      order: 5
+    },
+    threshold_direction: {
+      type: "string",
+      label: "Direction",
+      display: "select",
+      values: [
+        { "Higher is better": "asc" },
+        { "Lower is better": "desc" }
+      ],
+      default: "asc",
+      section: "Thresholds",
+      order: 6
+    },
+    breakdown_use_threshold: {
+      type: "string",
+      label: "Apply to Breakdown Values",
+      display: "select",
+      values: [
+        { "No": "false" },
+        { "Yes": "true" }
+      ],
+      default: "false",
+      section: "Thresholds",
       order: 7
     },
 
-    // Format
+    // -- Format --
     value_format_override: {
       type: "string",
       label: "Value Format Override",
@@ -132,9 +223,9 @@ looker.plugins.visualizations.add({
     }
   },
 
-  // ----------------------------------------------
+  // --------------------------------------------------
   // CREATE
-  // ----------------------------------------------
+  // --------------------------------------------------
   create: function (element, config) {
     element.innerHTML = "";
     element.style.fontFamily = config.font_family || "'Inter','Helvetica Neue',Arial,sans-serif";
@@ -145,9 +236,9 @@ looker.plugins.visualizations.add({
     element.style.boxSizing = "border-box";
   },
 
-  // ----------------------------------------------
+  // --------------------------------------------------
   // UPDATE
-  // ----------------------------------------------
+  // --------------------------------------------------
   updateAsync: function (data, element, config, queryResponse, details, doneRendering) {
     element.innerHTML = "";
     element.style.overflow = "hidden";
@@ -200,13 +291,43 @@ looker.plugins.visualizations.add({
     var subtitleSize     = Number(config.total_subtitle_size) || 14;
     var totalColor       = config.total_color || "#111827";
     var breakdownTitle   = config.breakdown_title || "Breakdown by type";
+    var layout           = config.breakdown_layout || "grid";
     var cols             = Number(config.breakdown_columns) || 3;
     var brkLabelSize     = Number(config.breakdown_label_size) || 14;
     var brkValueSize     = Number(config.breakdown_value_size) || 28;
     var brkLabelColor    = config.breakdown_label_color || "#9CA3AF";
     var brkValueColor    = config.breakdown_value_color || "#111827";
-    var showDivider      = config.show_divider !== "false";
+    var showDot          = config.show_dot !== "false";
     var fmtOverride      = (config.value_format_override || "").trim();
+
+    // Thresholds
+    var thGood           = config.threshold_good != null ? Number(config.threshold_good) : null;
+    var thWarning        = config.threshold_warning != null ? Number(config.threshold_warning) : null;
+    var thDirection      = config.threshold_direction || "asc";
+    var clrGood          = config.color_good || "#22C55E";
+    var clrWarning       = config.color_warning || "#F59E0B";
+    var clrDanger        = config.color_danger || "#EF4444";
+    var totalUseTh       = config.total_use_threshold === "true";
+    var brkUseTh         = config.breakdown_use_threshold === "true";
+
+    // Dot colors for table layout
+    var dotColors = ["#F97316", "#3B82F6", "#6366F1", "#10B981", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6"];
+
+    // -- Threshold color function --
+    function getThresholdColor(val) {
+      if (thGood == null && thWarning == null) return null;
+      if (thDirection === "asc") {
+        // Higher is better: >= good = green, >= warning = yellow, else red
+        if (thGood != null && val >= thGood) return clrGood;
+        if (thWarning != null && val >= thWarning) return clrWarning;
+        return clrDanger;
+      } else {
+        // Lower is better: <= good = green, <= warning = yellow, else red
+        if (thGood != null && val <= thGood) return clrGood;
+        if (thWarning != null && val <= thWarning) return clrWarning;
+        return clrDanger;
+      }
+    }
 
     // -- Process data --
     var total = 0;
@@ -219,28 +340,58 @@ looker.plugins.visualizations.add({
       var label = dimCell ? (dimCell.rendered || LookerCharts.Utils.textForCell(dimCell) || String(dimCell.value)) : "--";
       var val = measureCell ? Number(measureCell.value) || 0 : 0;
       total += val;
+
+      // Collect all measure values for table layout
+      var measureValues = [];
+      for (var mi = 0; mi < measures.length; mi++) {
+        var mc = row[measures[mi].name];
+        measureValues.push({
+          value: mc ? Number(mc.value) || 0 : 0,
+          rendered: mc ? mc.rendered : null,
+          links: mc ? mc.links : null
+        });
+      }
+
       breakdownItems.push({
         label: label,
         value: val,
         rendered: measureCell ? measureCell.rendered : null,
-        links: measureCell ? measureCell.links : null
+        links: measureCell ? measureCell.links : null,
+        measures: measureValues
       });
+    }
+
+    // -- Detect format from Looker field metadata or rendered values --
+    var detectedFormat = "#,##0";
+    if (!fmtOverride) {
+      var lkFmt = measureField.value_format;
+      if (lkFmt) {
+        detectedFormat = lkFmt;
+      } else if (breakdownItems.length > 0 && breakdownItems[0].rendered) {
+        var sample = breakdownItems[0].rendered;
+        if (sample.indexOf('%') !== -1) {
+          detectedFormat = "#,##0.0%";
+        } else if (sample.indexOf('$') !== -1) {
+          var decMatch = sample.match(/\.(\d+)/);
+          var dec = decMatch ? decMatch[1].length : 0;
+          detectedFormat = "$#,##0" + (dec > 0 ? "." + "0".repeat(dec) : "");
+        }
+      }
     }
 
     // -- Format helper --
     function formatVal(num, rendered) {
       if (fmtOverride) return formatNumber(num, fmtOverride);
       if (rendered) return rendered;
-      return formatNumber(num, "#,##0");
+      return formatNumber(num, detectedFormat);
     }
 
     // -- Build layout --
     var container = document.createElement("div");
     container.style.fontFamily = fontFamily;
-    container.style.padding = "20px 24px";
+    container.style.padding = "16px 12px 0";
     container.style.boxSizing = "border-box";
     container.style.width = "100%";
-    container.style.height = "100%";
     container.style.overflow = "hidden";
     container.style.display = "flex";
     container.style.flexDirection = "column";
@@ -252,9 +403,16 @@ looker.plugins.visualizations.add({
     var totalValueEl = document.createElement("div");
     totalValueEl.style.fontSize = totalFontSize + "px";
     totalValueEl.style.fontWeight = "800";
-    totalValueEl.style.color = totalColor;
     totalValueEl.style.lineHeight = "1.1";
     totalValueEl.textContent = formatVal(total, null);
+
+    // Total color: threshold or config
+    if (totalUseTh) {
+      var tColor = getThresholdColor(total);
+      totalValueEl.style.color = tColor || totalColor;
+    } else {
+      totalValueEl.style.color = totalColor;
+    }
     totalSection.appendChild(totalValueEl);
 
     var totalSubEl = document.createElement("div");
@@ -266,81 +424,205 @@ looker.plugins.visualizations.add({
 
     container.appendChild(totalSection);
 
-    // -- Divider --
-    if (showDivider) {
-      var divider = document.createElement("div");
-      divider.style.height = "1px";
-      divider.style.background = "#E5E7EB";
-      divider.style.margin = "16px 0";
-      container.appendChild(divider);
-    }
+    // -- Divider (always visible) --
+    var divider = document.createElement("div");
+    divider.style.height = "1px";
+    divider.style.background = "#E5E7EB";
+    divider.style.margin = "16px 0";
+    container.appendChild(divider);
 
     // -- Breakdown title --
     if (breakdownTitle) {
       var brkTitleEl = document.createElement("div");
       brkTitleEl.style.fontSize = subtitleSize + "px";
       brkTitleEl.style.color = "#9CA3AF";
-      brkTitleEl.style.marginBottom = "16px";
+      brkTitleEl.style.marginBottom = "12px";
       brkTitleEl.textContent = breakdownTitle;
       container.appendChild(brkTitleEl);
     }
 
-    // -- Breakdown grid --
-    var grid = document.createElement("div");
-    grid.style.display = "grid";
-    grid.style.gridTemplateColumns = "repeat(" + cols + ", 1fr)";
-    grid.style.gap = "20px 16px";
-    grid.style.overflow = "hidden";
+    // =============================================
+    // LAYOUT: GRID (original)
+    // =============================================
+    if (layout === "grid") {
+      var grid = document.createElement("div");
+      grid.style.display = "grid";
+      grid.style.gridTemplateColumns = "repeat(" + cols + ", 1fr)";
+      grid.style.gap = "20px 16px";
+      grid.style.overflow = "hidden";
 
-    for (var j = 0; j < breakdownItems.length; j++) {
-      var item = breakdownItems[j];
+      for (var j = 0; j < breakdownItems.length; j++) {
+        var item = breakdownItems[j];
+        var cell = document.createElement("div");
+        cell.style.display = "flex";
+        cell.style.flexDirection = "column";
+        cell.style.gap = "2px";
 
-      var cell = document.createElement("div");
-      cell.style.display = "flex";
-      cell.style.flexDirection = "column";
-      cell.style.gap = "2px";
+        var cellLabel = document.createElement("div");
+        cellLabel.style.fontSize = brkLabelSize + "px";
+        cellLabel.style.color = brkLabelColor;
+        cellLabel.style.fontWeight = "500";
+        cellLabel.textContent = item.label;
+        cell.appendChild(cellLabel);
 
-      var cellLabel = document.createElement("div");
-      cellLabel.style.fontSize = brkLabelSize + "px";
-      cellLabel.style.color = brkLabelColor;
-      cellLabel.style.fontWeight = "500";
-      cellLabel.textContent = item.label;
-      cell.appendChild(cellLabel);
+        var cellValue = document.createElement("div");
+        cellValue.style.fontSize = brkValueSize + "px";
+        cellValue.style.fontWeight = "700";
+        cellValue.style.lineHeight = "1.2";
+        cellValue.textContent = formatVal(item.value, item.rendered);
+        if (brkUseTh) {
+          var c = getThresholdColor(item.value);
+          cellValue.style.color = c || brkValueColor;
+        } else {
+          cellValue.style.color = brkValueColor;
+        }
+        cell.appendChild(cellValue);
 
-      var cellValue = document.createElement("div");
-      cellValue.style.fontSize = brkValueSize + "px";
-      cellValue.style.fontWeight = "700";
-      cellValue.style.color = brkValueColor;
-      cellValue.style.lineHeight = "1.2";
-      cellValue.textContent = formatVal(item.value, item.rendered);
-      cell.appendChild(cellValue);
-
-      // Drill support
-      if (item.links && item.links.length > 0) {
-        cell.style.cursor = "pointer";
-        (function (links) {
-          cell.addEventListener("click", function (e) {
-            LookerCharts.Utils.openDrillMenu({
-              links: links,
-              event: e
-            });
-          });
-        })(item.links);
+        addDrill(cell, item.links);
+        grid.appendChild(cell);
       }
-
-      grid.appendChild(cell);
+      container.appendChild(grid);
     }
 
-    container.appendChild(grid);
+    // =============================================
+    // LAYOUT: LIST (label left, value right)
+    // =============================================
+    if (layout === "list") {
+      var list = document.createElement("div");
+      list.style.display = "flex";
+      list.style.flexDirection = "column";
+      list.style.gap = "0";
+
+      for (var li = 0; li < breakdownItems.length; li++) {
+        var lItem = breakdownItems[li];
+
+        var row = document.createElement("div");
+        row.style.display = "flex";
+        row.style.justifyContent = "space-between";
+        row.style.alignItems = "center";
+        row.style.padding = "8px 0";
+        if (li < breakdownItems.length - 1) {
+          row.style.borderBottom = "1px solid #F3F4F6";
+        }
+
+        var rowLabel = document.createElement("div");
+        rowLabel.style.fontSize = brkLabelSize + "px";
+        rowLabel.style.color = brkLabelColor;
+        rowLabel.style.fontWeight = "500";
+        rowLabel.textContent = lItem.label;
+        row.appendChild(rowLabel);
+
+        var rowValue = document.createElement("div");
+        rowValue.style.fontSize = brkValueSize + "px";
+        rowValue.style.fontWeight = "700";
+        rowValue.style.lineHeight = "1.2";
+        rowValue.textContent = formatVal(lItem.value, lItem.rendered);
+        if (brkUseTh) {
+          var lc = getThresholdColor(lItem.value);
+          rowValue.style.color = lc || brkValueColor;
+        } else {
+          rowValue.style.color = brkValueColor;
+        }
+        row.appendChild(rowValue);
+
+        addDrill(row, lItem.links);
+        list.appendChild(row);
+      }
+      container.appendChild(list);
+    }
+
+    // =============================================
+    // LAYOUT: TABLE (dot + label + multi measures)
+    // =============================================
+    if (layout === "table") {
+      var table = document.createElement("div");
+      table.style.display = "flex";
+      table.style.flexDirection = "column";
+      table.style.gap = "0";
+
+      for (var ti = 0; ti < breakdownItems.length; ti++) {
+        var tItem = breakdownItems[ti];
+
+        var tRow = document.createElement("div");
+        tRow.style.display = "flex";
+        tRow.style.alignItems = "center";
+        tRow.style.padding = "8px 0";
+        tRow.style.gap = "12px";
+        if (ti < breakdownItems.length - 1) {
+          tRow.style.borderBottom = "1px solid #F3F4F6";
+        }
+
+        // Color dot
+        if (showDot) {
+          var dot = document.createElement("div");
+          dot.style.width = "10px";
+          dot.style.height = "10px";
+          dot.style.borderRadius = "50%";
+          dot.style.flexShrink = "0";
+          dot.style.background = dotColors[ti % dotColors.length];
+          tRow.appendChild(dot);
+        }
+
+        // Label
+        var tLabel = document.createElement("div");
+        tLabel.style.flex = "1";
+        tLabel.style.fontSize = brkLabelSize + "px";
+        tLabel.style.color = "#111827";
+        tLabel.style.fontWeight = "500";
+        tLabel.textContent = tItem.label;
+        tRow.appendChild(tLabel);
+
+        // Measure columns
+        for (var mj = 0; mj < tItem.measures.length; mj++) {
+          var mv = tItem.measures[mj];
+          var mEl = document.createElement("div");
+          mEl.style.textAlign = "right";
+          mEl.style.minWidth = "60px";
+          mEl.style.fontSize = brkLabelSize + "px";
+          mEl.style.fontWeight = "600";
+
+          var mRendered = mv.rendered || formatNumber(mv.value, detectedFormat);
+          mEl.textContent = mRendered;
+
+          if (brkUseTh && mj === 0) {
+            var mc2 = getThresholdColor(mv.value);
+            mEl.style.color = mc2 || brkValueColor;
+          } else {
+            mEl.style.color = "#111827";
+          }
+
+          addDrill(mEl, mv.links);
+          tRow.appendChild(mEl);
+        }
+
+        addDrill(tRow, tItem.links);
+        table.appendChild(tRow);
+      }
+      container.appendChild(table);
+    }
+
     element.appendChild(container);
     doneRendering();
+
+    // -- Drill helper --
+    function addDrill(el, links) {
+      if (links && links.length > 0) {
+        el.style.cursor = "pointer";
+        (function (l) {
+          el.addEventListener("click", function (e) {
+            LookerCharts.Utils.openDrillMenu({ links: l, event: e });
+          });
+        })(links);
+      }
+    }
   }
 
 });
 
-// ----------------------------------------------
+
+// --------------------------------------------------
 // Helpers
-// ----------------------------------------------
+// --------------------------------------------------
 function formatNumber(val, fmt) {
   if (!fmt) return String(val);
 
