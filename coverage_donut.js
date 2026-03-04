@@ -1,29 +1,25 @@
 /**
 
-
-Coverage Donut — Looker Custom Visualization
-
-Renders a donut chart showing a coverage percentage with status badge
-and optional period-over-period variation.
-
-Query: 1 measure (coverage rate). Optional 2nd measure (previous period for variation).
-
-manifest.lkml:
-visualization: {
-```
-  id: "coverage_donut"
-  ```
-
-```
-  label: "Coverage Donut"
-  ```
-
-```
-  file: "visualizations/coverage_donut.js"
-  ```
-
-}
-  */
+- Coverage Donut — Looker Custom Visualization
+- 
+- Renders a donut chart showing a coverage percentage with status badge
+- and optional period-over-period variation.
+- 
+- Query: 1 measure (coverage rate). Optional 2nd measure (previous period for variation).
+- 
+- manifest.lkml:
+- visualization: {
+- ```
+  id: "coverage_donut"
+  ```
+- ```
+  label: "Coverage Donut"
+  ```
+- ```
+  file: "visualizations/coverage_donut.js"
+  ```
+- }
+  */
 
 looker.plugins.visualizations.add({
 
@@ -182,17 +178,19 @@ element.innerHTML = “”;
 element.style.overflow = “hidden”;
 element.style.padding = “0”;
 element.style.margin = “0”;
-// Also force the parent container (Looker’s vis wrapper) to hide overflow
-if (element.parentElement) {
-element.parentElement.style.overflow = “hidden”;
+// Walk up the DOM and force overflow hidden on all ancestors within the iframe
+var parent = element.parentElement;
+while (parent && parent !== document.body) {
+parent.style.overflow = “hidden”;
+parent = parent.parentElement;
 }
 
 ```
 // ── Validate data ──
 if (!data || data.length === 0) {
-  element.innerHTML = '<p style="color:#9CA3AF;text-align:center;padding:20px;font-size:13px;">No data returned</p>';
-  doneRendering();
-  return;
+  element.innerHTML = '<p style="color:#9CA3AF;text-align:center;padding:20px;font-size:13px;">No data returned</p>';
+  doneRendering();
+  return;
 }
 
 // ── Gather all measure-like fields (measures + table_calculations) ──
@@ -200,28 +198,28 @@ if (!data || data.length === 0) {
 // Fallback to manual concat if measure_like is not available.
 var allMeasures = [];
 if (queryResponse.fields.measure_like && queryResponse.fields.measure_like.length > 0) {
-  allMeasures = queryResponse.fields.measure_like;
+  allMeasures = queryResponse.fields.measure_like;
 } else {
-  var measures = queryResponse.fields.measures || queryResponse.fields.measure_like || [];
-  var tablecalcs = queryResponse.fields.table_calculations || [];
-  allMeasures = measures.concat(tablecalcs);
+  var measures = queryResponse.fields.measures || queryResponse.fields.measure_like || [];
+  var tablecalcs = queryResponse.fields.table_calculations || [];
+  allMeasures = measures.concat(tablecalcs);
 }
 
 // If still empty, also check dimension_like as some table calcs end up there
 if (allMeasures.length === 0) {
-  // Last resort: grab any field that has data in the first row
-  var allFields = [].concat(
-    queryResponse.fields.measures || [],
-    queryResponse.fields.dimensions || [],
-    queryResponse.fields.table_calculations || []
-  );
-  allMeasures = allFields;
+  // Last resort: grab any field that has data in the first row
+  var allFields = [].concat(
+    queryResponse.fields.measures || [],
+    queryResponse.fields.dimensions || [],
+    queryResponse.fields.table_calculations || []
+  );
+  allMeasures = allFields;
 }
 
 if (allMeasures.length < 1) {
-  element.innerHTML = '<p style="color:#9CA3AF;text-align:center;padding:20px;font-size:13px;">Add at least 1 measure or table calculation to the query</p>';
-  doneRendering();
-  return;
+  element.innerHTML = '<p style="color:#9CA3AF;text-align:center;padding:20px;font-size:13px;">Add at least 1 measure or table calculation to the query</p>';
+  doneRendering();
+  return;
 }
 
 this.clearErrors();
@@ -232,9 +230,9 @@ var primaryField = allMeasures[0];
 
 var primaryCell = row[primaryField.name];
 if (!primaryCell) {
-  element.innerHTML = '<p style="color:#9CA3AF;text-align:center;padding:20px;font-size:13px;">No data for field: ' + primaryField.name + '</p>';
-  doneRendering();
-  return;
+  element.innerHTML = '<p style="color:#9CA3AF;text-align:center;padding:20px;font-size:13px;">No data for field: ' + primaryField.name + '</p>';
+  doneRendering();
+  return;
 }
 
 var primaryRaw = primaryCell.value;
@@ -250,53 +248,60 @@ var variationField = allMeasures.length > 1 ? allMeasures[1] : null;
 var variationDelta = null;
 
 if (variationField && showVariation) {
-  var varCell = row[variationField.name];
-  if (varCell) {
-    var varRaw = varCell.value;
-    var varValue = parseFloat(String(varRaw).replace("%", ""));
-    if (!isNaN(varValue)) {
-      var prevPct = (varValue > 0 && varValue <= 1) ? varValue * 100 : varValue;
-      variationDelta = pct - prevPct;
-    }
-  }
+  var varCell = row[variationField.name];
+  if (varCell) {
+    var varRaw = varCell.value;
+    var varValue = parseFloat(String(varRaw).replace("%", ""));
+    if (!isNaN(varValue)) {
+      var prevPct = (varValue > 0 && varValue <= 1) ? varValue * 100 : varValue;
+      variationDelta = pct - prevPct;
+    }
+  }
 }
 
 // ── Config ──
 var colorFilled = config.color_filled || "#F97316";
-var colorEmpty  = config.color_empty  || "#E5E7EB";
-var thickness   = Number(config.donut_thickness) || 20;
-var subtitle    = config.subtitle_text || "Covered";
-var fzValue     = Number(config.font_size_value) || 32;
-var fzSub       = Number(config.font_size_subtitle) || 13;
-var threshGood  = Number(config.threshold_good) || 80;
-var threshFair  = Number(config.threshold_fair) || 60;
-var labelGood   = config.label_good || "Good";
-var labelFair   = config.label_fair || "Fair";
-var labelPoor   = config.label_poor || "Poor";
-var colorGood   = config.color_good || "#22C55E";
-var colorFair   = config.color_fair || "#F59E0B";
-var colorPoor   = config.color_poor || "#EF4444";
-var varLabel    = config.variation_label || "vs last period";
+var colorEmpty  = config.color_empty  || "#E5E7EB";
+var thickness   = Number(config.donut_thickness) || 20;
+var subtitle    = config.subtitle_text || "Covered";
+var fzValue     = Number(config.font_size_value) || 32;
+var fzSub       = Number(config.font_size_subtitle) || 13;
+var threshGood  = Number(config.threshold_good) || 80;
+var threshFair  = Number(config.threshold_fair) || 60;
+var labelGood   = config.label_good || "Good";
+var labelFair   = config.label_fair || "Fair";
+var labelPoor   = config.label_poor || "Poor";
+var colorGood   = config.color_good || "#22C55E";
+var colorFair   = config.color_fair || "#F59E0B";
+var colorPoor   = config.color_poor || "#EF4444";
+var varLabel    = config.variation_label || "vs last period";
 
 // Status
 var statusLabel, statusColor;
 if (pct >= threshGood) {
-  statusLabel = labelGood;
-  statusColor = colorGood;
+  statusLabel = labelGood;
+  statusColor = colorGood;
 } else if (pct >= threshFair) {
-  statusLabel = labelFair;
-  statusColor = colorFair;
+  statusLabel = labelFair;
+  statusColor = colorFair;
 } else {
-  statusLabel = labelPoor;
-  statusColor = colorPoor;
+  statusLabel = labelPoor;
+  statusColor = colorPoor;
 }
 
 // ── Sizing ──
-// Use getBoundingClientRect for reliable sizing in Looker's sandboxed iframe
+// Try multiple approaches to get the real available space
 var rect = element.getBoundingClientRect();
-var elW = rect.width || 300;
-var elH = rect.height || 300;
-var svgSize = Math.max(Math.min(elW * 0.92, elH * 0.78), 80);
+var elW = rect.width || element.clientWidth || window.innerWidth || 300;
+var elH = rect.height || element.clientHeight || window.innerHeight || 300;
+
+// Reserve space for badge (~28px) and variation row (~20px)
+var badgeSpace = 30;
+if (showVariation && variationDelta !== null) badgeSpace += 22;
+var availH = elH - badgeSpace;
+
+// Donut should fill as much as possible
+var svgSize = Math.max(Math.min(elW, availH), 80);
 var cx = svgSize / 2;
 var cy = svgSize / 2;
 var r = (svgSize / 2) - (thickness / 2) - 4;
@@ -337,22 +342,22 @@ svg.appendChild(bg);
 
 // Filled arc
 if (pct > 0) {
-  var arc = document.createElementNS(ns, "circle");
-  arc.setAttribute("cx", cx);
-  arc.setAttribute("cy", cy);
-  arc.setAttribute("r", r);
-  arc.setAttribute("fill", "none");
-  arc.setAttribute("stroke", colorFilled);
-  arc.setAttribute("stroke-width", thickness);
-  arc.setAttribute("stroke-linecap", "round");
-  arc.setAttribute("stroke-dasharray", filled + " " + gap);
-  // Offset to start from top (12 o'clock position)
-  arc.setAttribute("stroke-dashoffset", String(circum * 0.25));
-  // Smooth animation on load
-  arc.setAttribute("style",
-    "transition: stroke-dasharray 0.6s ease-out; transform-origin: center; transform: rotate(0deg);"
-  );
-  svg.appendChild(arc);
+  var arc = document.createElementNS(ns, "circle");
+  arc.setAttribute("cx", cx);
+  arc.setAttribute("cy", cy);
+  arc.setAttribute("r", r);
+  arc.setAttribute("fill", "none");
+  arc.setAttribute("stroke", colorFilled);
+  arc.setAttribute("stroke-width", thickness);
+  arc.setAttribute("stroke-linecap", "round");
+  arc.setAttribute("stroke-dasharray", filled + " " + gap);
+  // Offset to start from top (12 o'clock position)
+  arc.setAttribute("stroke-dashoffset", String(circum * 0.25));
+  // Smooth animation on load
+  arc.setAttribute("style",
+    "transition: stroke-dasharray 0.6s ease-out; transform-origin: center; transform: rotate(0deg);"
+  );
+  svg.appendChild(arc);
 }
 
 // Value text
@@ -399,43 +404,43 @@ wrapper.appendChild(badge);
 
 // ── Variation row ──
 if (showVariation && variationDelta !== null) {
-  var isPos = variationDelta >= 0;
-  var varClr = isPos ? colorGood : colorPoor;
-  var arrow = isPos ? "\u2197" : "\u2198";
-  var sign = isPos ? "+" : "";
+  var isPos = variationDelta >= 0;
+  var varClr = isPos ? colorGood : colorPoor;
+  var arrow = isPos ? "\u2197" : "\u2198";
+  var sign = isPos ? "+" : "";
 
-  var varRow = document.createElement("div");
-  varRow.style.display = "flex";
-  varRow.style.alignItems = "center";
-  varRow.style.gap = "4px";
-  varRow.style.fontSize = "12px";
-  varRow.style.color = "#6B7280";
-  varRow.style.fontFamily = "'Inter','Helvetica Neue',Arial,sans-serif";
+  var varRow = document.createElement("div");
+  varRow.style.display = "flex";
+  varRow.style.alignItems = "center";
+  varRow.style.gap = "4px";
+  varRow.style.fontSize = "12px";
+  varRow.style.color = "#6B7280";
+  varRow.style.fontFamily = "'Inter','Helvetica Neue',Arial,sans-serif";
 
-  var varNum = document.createElement("span");
-  varNum.style.color = varClr;
-  varNum.style.fontWeight = "700";
-  varNum.style.fontSize = "13px";
-  varNum.textContent = arrow + " " + sign + Math.abs(variationDelta).toFixed(1) + "%";
+  var varNum = document.createElement("span");
+  varNum.style.color = varClr;
+  varNum.style.fontWeight = "700";
+  varNum.style.fontSize = "13px";
+  varNum.textContent = arrow + " " + sign + Math.abs(variationDelta).toFixed(1) + "%";
 
-  var varLbl = document.createElement("span");
-  varLbl.textContent = varLabel;
+  var varLbl = document.createElement("span");
+  varLbl.textContent = varLabel;
 
-  varRow.appendChild(varNum);
-  varRow.appendChild(varLbl);
-  wrapper.appendChild(varRow);
+  varRow.appendChild(varNum);
+  varRow.appendChild(varLbl);
+  wrapper.appendChild(varRow);
 }
 
 // ── Drill support ──
 var primaryLinks = primaryCell.links;
 if (primaryLinks && primaryLinks.length > 0) {
-  wrapper.style.cursor = "pointer";
-  wrapper.addEventListener("click", function (e) {
-    LookerCharts.Utils.openDrillMenu({
-      links: primaryLinks,
-      event: e
-    });
-  });
+  wrapper.style.cursor = "pointer";
+  wrapper.addEventListener("click", function (e) {
+    LookerCharts.Utils.openDrillMenu({
+      links: primaryLinks,
+      event: e
+    });
+  });
 }
 
 element.appendChild(wrapper);
