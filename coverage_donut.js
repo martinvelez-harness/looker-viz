@@ -392,7 +392,7 @@ svg.appendChild(tVal);
 // Subtitle text
 var tSub = document.createElementNS(ns, "text");
 tSub.setAttribute("x", cx);
-tSub.setAttribute("y", cy + (fzValue + 5) * 1.0);
+tSub.setAttribute("y", cy + fzValue * 1.0 + 10);
 tSub.setAttribute("text-anchor", "middle");
 tSub.setAttribute("dominant-baseline", "central");
 tSub.setAttribute("font-size", fzSub);
