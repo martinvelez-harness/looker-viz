@@ -182,10 +182,19 @@ element.style.margin = “0”;
 var parent = element.parentElement;
 while (parent && parent !== document.body) {
 parent.style.overflow = “hidden”;
+parent.style.padding = “0”;
 parent = parent.parentElement;
 }
 
 ```
+// Inject style override to kill any Looker padding on #vis
+if (!document.getElementById("_donut_reset_css")) {
+  var style = document.createElement("style");
+  style.id = "_donut_reset_css";
+  style.textContent = "#vis, #vis-container, .looker-vis-context { padding: 0 !important; margin: 0 !important; overflow: hidden !important; }";
+  document.head.appendChild(style);
+}
+
 // ── Validate data ──
 if (!data || data.length === 0) {
   element.innerHTML = '<p style="color:#9CA3AF;text-align:center;padding:20px;font-size:13px;">No data returned</p>';
@@ -300,8 +309,8 @@ var badgeSpace = 30;
 if (showVariation && variationDelta !== null) badgeSpace += 22;
 var availH = elH - badgeSpace;
 
-// Donut should fill as much as possible
-var svgSize = Math.max(Math.min(elW, availH), 80);
+// Donut should fill as much as possible but NEVER exceed container
+var svgSize = Math.max(Math.min(elW * 0.85, availH * 0.85), 80);
 var cx = svgSize / 2;
 var cy = svgSize / 2;
 var r = (svgSize / 2) - (thickness / 2) - 4;
@@ -322,6 +331,9 @@ wrapper.style.height = "100%";
 wrapper.style.padding = "0";
 wrapper.style.margin = "0";
 wrapper.style.overflow = "hidden";
+wrapper.style.maxWidth = "100%";
+wrapper.style.maxHeight = "100%";
+wrapper.style.boxSizing = "border-box";
 
 var ns = "http://www.w3.org/2000/svg";
 
@@ -329,6 +341,10 @@ var svg = document.createElementNS(ns, "svg");
 svg.setAttribute("width", svgSize);
 svg.setAttribute("height", svgSize);
 svg.setAttribute("viewBox", "0 0 " + svgSize + " " + svgSize);
+svg.style.maxWidth = "100%";
+svg.style.maxHeight = "100%";
+svg.style.display = "block";
+svg.style.flexShrink = "1";
 
 // Background circle (track)
 var bg = document.createElementNS(ns, "circle");
@@ -363,7 +379,7 @@ if (pct > 0) {
 // Value text
 var tVal = document.createElementNS(ns, "text");
 tVal.setAttribute("x", cx);
-tVal.setAttribute("y", cy - 2);
+tVal.setAttribute("y", cy - 8);
 tVal.setAttribute("text-anchor", "middle");
 tVal.setAttribute("dominant-baseline", "central");
 tVal.setAttribute("font-size", fzValue);
@@ -376,7 +392,7 @@ svg.appendChild(tVal);
 // Subtitle text
 var tSub = document.createElementNS(ns, "text");
 tSub.setAttribute("x", cx);
-tSub.setAttribute("y", cy + fzValue * 0.65);
+tSub.setAttribute("y", cy + fzValue * 0.8);
 tSub.setAttribute("text-anchor", "middle");
 tSub.setAttribute("dominant-baseline", "central");
 tSub.setAttribute("font-size", fzSub);
