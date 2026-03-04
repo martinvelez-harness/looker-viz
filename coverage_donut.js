@@ -1,6 +1,6 @@
 /**
  * Coverage Donut — Looker Custom Visualization
- * Harness
+ *  Harness
  *
  * Renders a donut chart showing a coverage percentage with status badge
  * and optional period-over-period variation.
@@ -17,8 +17,8 @@
 
 looker.plugins.visualizations.add({
 
-  id: "coverage_donut",
-  label: "Coverage Donut",
+  id: "single_value_donut",
+  label: "Single Value Donut",
 
   options: {
     color_filled: {
