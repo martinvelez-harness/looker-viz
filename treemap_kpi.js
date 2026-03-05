@@ -3,13 +3,13 @@
  * Developed by Martin Velez
  *
  * Renders a treemap where rectangle sizes are proportional to a measure,
- * colors are determined by a dimension (e.g. provider), and labels come
- * from another dimension (e.g. region).
+ * colors are determined by the pivot dimension (e.g. provider), and labels
+ * come from the non-pivot dimension (e.g. region).
  *
- * Query: 2 dimensions + 1 measure.
- *   - First dimension  = label inside each rectangle (e.g. region)
- *   - Second dimension = color grouping (e.g. cloud provider)
- *   - Measure          = value (determines rectangle size)
+ * Query: 1 dimension + 1 pivot + 1 measure.
+ *   - Dimension (non-pivot) = label inside each rectangle (e.g. region)
+ *   - Pivot dimension       = color grouping (e.g. cloud provider)
+ *   - Measure               = value (determines rectangle size)
  *
  * Admin -> Visualizations:
  *   ID: treemap_kpi
@@ -91,9 +91,14 @@ looker.plugins.visualizations.add({
     if (measures.length === 0) {
       measures = (queryResponse.fields.measures || []).concat(queryResponse.fields.table_calculations || []);
     }
+    var pivots = queryResponse.pivots || [];
 
-    if (dimensions.length < 2) {
-      element.innerHTML = '<p style="color:#9CA3AF;text-align:center;padding:20px;font-size:13px;">Add 2 dimensions (label + color group) and 1 measure</p>';
+    if (dimensions.length < 1) {
+      element.innerHTML = '<p style="color:#9CA3AF;text-align:center;padding:20px;font-size:13px;">Add 1 dimension (labels) + 1 pivot (colors) + 1 measure</p>';
+      doneRendering(); return;
+    }
+    if (pivots.length === 0) {
+      element.innerHTML = '<p style="color:#9CA3AF;text-align:center;padding:20px;font-size:13px;">Add a pivot dimension for color grouping</p>';
       doneRendering(); return;
     }
     if (measures.length < 1) {
@@ -105,18 +110,12 @@ looker.plugins.visualizations.add({
 
     // ── Fields ──
     var labelDim = dimensions[0];
-    var colorDim = dimensions[1];
     var measureField = measures[0];
 
-    // ── Dynamic options ──
+    // ── Color groups from pivot ──
     var colorGroups = [];
-    var colorGroupSet = {};
-    for (var ci = 0; ci < data.length; ci++) {
-      var cVal = data[ci][colorDim.name].rendered || String(data[ci][colorDim.name].value) || "--";
-      if (!colorGroupSet[cVal]) {
-        colorGroupSet[cVal] = true;
-        colorGroups.push(cVal);
-      }
+    for (var pi = 0; pi < pivots.length; pi++) {
+      colorGroups.push(pivots[pi].key);
     }
 
     var fieldKey = colorGroups.join("|");
@@ -180,6 +179,7 @@ looker.plugins.visualizations.add({
     }
 
     // ── Build data ──
+    // Each row x pivot combination = one treemap rectangle
     var items = [];
     var groupTotals = {};
     var grandTotal = 0;
@@ -187,16 +187,24 @@ looker.plugins.visualizations.add({
     for (var ri = 0; ri < data.length; ri++) {
       var row = data[ri];
       var lbl = row[labelDim.name].rendered || String(row[labelDim.name].value) || "--";
-      var grp = row[colorDim.name].rendered || String(row[colorDim.name].value) || "--";
       var mCell = row[measureField.name];
-      var val = mCell ? Number(mCell.value) || 0 : 0;
-      var links = mCell ? mCell.links : null;
 
-      if (val <= 0) continue;
+      for (var pvi = 0; pvi < colorGroups.length; pvi++) {
+        var pk = colorGroups[pvi];
+        var val = 0;
+        var links = null;
 
-      items.push({ label: lbl, group: grp, value: val, links: links });
-      grandTotal += val;
-      groupTotals[grp] = (groupTotals[grp] || 0) + val;
+        if (mCell && mCell[pk]) {
+          val = Number(mCell[pk].value) || 0;
+          links = mCell[pk].links || null;
+        }
+
+        if (val <= 0) continue;
+
+        items.push({ label: lbl, group: pk, value: val, links: links });
+        grandTotal += val;
+        groupTotals[pk] = (groupTotals[pk] || 0) + val;
+      }
     }
 
     // Sort items by value descending
