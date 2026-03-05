@@ -411,7 +411,7 @@ looker.plugins.visualizations.add({
 
     var subValueColor = config.subtitle_value_color || subtitleColor;
     if (secondaryField) {
-      var subPrefix = config.subtitle_measure_prefix || "Total value";
+      var subPrefix = config.subtitle_measure_prefix != null ? config.subtitle_measure_prefix : "Total value";
       var subLblSpan = document.createElement("span");
       subLblSpan.style.color = subtitleColor;
       subLblSpan.textContent = subPrefix + ": ";
@@ -438,7 +438,7 @@ looker.plugins.visualizations.add({
     if (breakdownTitle) {
       var brkTitleEl = document.createElement("div");
       brkTitleEl.style.fontSize = subtitleSize + "px";
-      brkTitleEl.style.color = "#9CA3AF";
+      brkTitleEl.style.color = config.breakdown_title_color || "#9CA3AF";
       brkTitleEl.style.marginBottom = "12px";
       brkTitleEl.textContent = breakdownTitle;
       container.appendChild(brkTitleEl);
@@ -707,6 +707,10 @@ function _buildBaseOptions() {
     breakdown_title: {
       type: "string", label: "Section Title", default: "Breakdown by type",
       section: "Breakdown", order: 2
+    },
+    breakdown_title_color: {
+      type: "string", label: "Section Title Color", default: "#9CA3AF",
+      display: "color", section: "Breakdown", order: 3
     },
     breakdown_columns: {
       type: "string", label: "Grid Columns", display: "select",
