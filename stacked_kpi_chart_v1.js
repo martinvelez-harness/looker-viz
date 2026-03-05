@@ -1,5 +1,6 @@
 /**
  * Stacked KPI Chart -- Looker Custom Visualization
+ * Developed by Martin Velez
  *
  * Stacked bar chart with summary KPI metrics above.
  * - Pivot dimension values become stacked segments within each bar.
