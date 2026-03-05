@@ -140,13 +140,23 @@ looker.plugins.visualizations.add({
       for (var oi = 0; oi < allMeasures.length; oi++) {
         var f = allMeasures[oi];
         var sLabel = f.label_short || f.label || f.name;
-        var secName = "Series: " + sLabel;
+        var tag = sLabel;
+        var sec = "Series";
         var prefix = "series_" + oi + "_";
-        var base = (oi + 1) * 10;
+        // Each series block of 20 order slots to keep them grouped
+        var base = 100 + (oi * 20);
 
+        // Header separator label
+        dynOpts[prefix + "_header"] = {
+          type: "string",
+          label: "--- " + tag + " ---",
+          default: "",
+          section: sec,
+          order: base
+        };
         dynOpts[prefix + "role"] = {
           type: "string",
-          label: "Role",
+          label: tag + " | Role",
           display: "select",
           values: [
             { "Primary": "primary" },
@@ -154,39 +164,39 @@ looker.plugins.visualizations.add({
             { "Hidden": "hidden" }
           ],
           default: oi === 0 ? "primary" : "secondary",
-          section: secName,
+          section: sec,
           order: base + 1
         };
         dynOpts[prefix + "order"] = {
           type: "number",
-          label: "Display Order",
+          label: tag + " | Display Order",
           default: oi + 1,
-          section: secName,
+          section: sec,
           order: base + 2
         };
         dynOpts[prefix + "label"] = {
           type: "string",
-          label: "Custom Label",
+          label: tag + " | Custom Label",
           default: "",
           placeholder: sLabel,
-          section: secName,
+          section: sec,
           order: base + 3
         };
         dynOpts[prefix + "bold"] = {
           type: "string",
-          label: "Font Weight",
+          label: tag + " | Font Weight",
           display: "select",
           values: [
             { "Bold": "bold" },
             { "Normal": "normal" }
           ],
-          default: oi === 0 ? "bold" : "bold",
-          section: secName,
+          default: "bold",
+          section: sec,
           order: base + 4
         };
         dynOpts[prefix + "value_format"] = {
           type: "string",
-          label: "Value Format",
+          label: tag + " | Value Format",
           display: "select",
           values: [
             { "Auto (from query)": "auto" },
@@ -202,97 +212,97 @@ looker.plugins.visualizations.add({
             { "Custom": "custom" }
           ],
           default: "auto",
-          section: secName,
+          section: sec,
           order: base + 5
         };
         dynOpts[prefix + "value_format_custom"] = {
           type: "string",
-          label: "Custom Format",
+          label: tag + " | Custom Format",
           default: "",
-          placeholder: "e.g. $#,##0.00 or #,##0.0%",
-          section: secName,
+          placeholder: "e.g. $#,##0.00",
+          section: sec,
           order: base + 6
         };
         dynOpts[prefix + "color"] = {
           type: "string",
-          label: "Value Color",
+          label: tag + " | Value Color",
           default: "#111827",
           display: "color",
-          section: secName,
+          section: sec,
           order: base + 7
         };
         dynOpts[prefix + "divider_after"] = {
           type: "string",
-          label: "Divider After",
+          label: tag + " | Divider After",
           display: "select",
           values: [
             { "No": "false" },
             { "Yes": "true" }
           ],
           default: oi === 0 ? "true" : "false",
-          section: secName,
+          section: sec,
           order: base + 8
         };
         dynOpts[prefix + "use_threshold"] = {
           type: "string",
-          label: "Apply Threshold",
+          label: tag + " | Threshold",
           display: "select",
           values: [
-            { "No": "false" },
-            { "Yes": "true" }
+            { "Off": "false" },
+            { "On": "true" }
           ],
           default: "false",
-          section: secName,
+          section: sec,
           order: base + 9
         };
         dynOpts[prefix + "th_good"] = {
           type: "number",
-          label: "Good >= (value)",
+          label: tag + " | Good >=",
           default: null,
-          section: secName,
+          section: sec,
           order: base + 10
         };
         dynOpts[prefix + "th_warning"] = {
           type: "number",
-          label: "Warning >= (value)",
+          label: tag + " | Warning >=",
           default: null,
-          section: secName,
+          section: sec,
           order: base + 11
         };
         dynOpts[prefix + "th_direction"] = {
           type: "string",
-          label: "Threshold Direction",
+          label: tag + " | Direction",
           display: "select",
           values: [
             { "Higher is better": "asc" },
             { "Lower is better": "desc" }
           ],
           default: "asc",
-          section: secName,
+          section: sec,
           order: base + 12
         };
         dynOpts[prefix + "th_color_good"] = {
           type: "string",
-          label: "Good Color",
+          label: tag + " | Good Color",
           default: "#22C55E",
           display: "color",
-          section: secName,
+          section: sec,
           order: base + 13
         };
         dynOpts[prefix + "th_color_warning"] = {
           type: "string",
-          label: "Warning Color",
+          label: tag + " | Warning Color",
           default: "#F59E0B",
           display: "color",
-          section: secName,
+          section: sec,
           order: base + 14
         };
         dynOpts[prefix + "th_color_danger"] = {
           type: "string",
-          label: "Danger Color",
+          label: tag + " | Danger Color",
           default: "#EF4444",
           display: "color",
-          section: secName,
+          section: sec,
           order: base + 15
         };
       }
