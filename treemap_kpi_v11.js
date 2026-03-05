@@ -301,12 +301,21 @@ looker.plugins.visualizations.add({
       container.appendChild(summaryRow);
 
       // Divider
-      var divEl = document.createElement("div");
-      divEl.style.height = "1px";
-      divEl.style.background = config.divider_color || "#E5E7EB";
-      divEl.style.marginBottom = "8px";
-      divEl.style.flexShrink = "0";
-      container.appendChild(divEl);
+      if (config.show_divider !== "false") {
+        var divEl = document.createElement("div");
+        divEl.style.height = "1px";
+        divEl.style.background = config.divider_color || "#E5E7EB";
+        divEl.style.marginTop = "8px";
+        divEl.style.marginBottom = "12px";
+        divEl.style.flexShrink = "0";
+        container.appendChild(divEl);
+      } else {
+        // Still add spacing even without the line
+        var spacer = document.createElement("div");
+        spacer.style.height = "12px";
+        spacer.style.flexShrink = "0";
+        container.appendChild(spacer);
+      }
     }
 
     // ── Legend builder ──
@@ -407,36 +416,58 @@ looker.plugins.visualizations.add({
       cell.style.display = "flex";
       cell.style.flexDirection = "column";
       cell.style.justifyContent = "center";
-      cell.style.alignItems = "flex-start";
+      cell.style.alignItems = "center";
+      cell.style.textAlign = "center";
       cell.style.padding = "8px 12px";
       cell.style.boxSizing = "border-box";
 
       var cellW = r.w - cellGap;
       var cellHeight = r.h - cellGap;
 
-      // Only show text if cell is large enough
-      if (cellW > 40 && cellHeight > 30) {
-        var lblEl = document.createElement("div");
-        lblEl.style.fontSize = cellLabelSize + "px";
-        lblEl.style.fontWeight = cellLabelWeight;
-        lblEl.style.color = "white";
-        lblEl.style.lineHeight = "1.2";
-        lblEl.style.overflow = "hidden";
-        lblEl.style.textOverflow = "ellipsis";
-        lblEl.style.whiteSpace = "nowrap";
-        lblEl.style.maxWidth = "100%";
-        lblEl.textContent = it.label;
-        cell.appendChild(lblEl);
+      // Adaptive font size: scale down for small cells, never hide
+      var adaptLblSize = cellLabelSize;
+      var adaptValSize = cellValueSize;
+      var showVal = true;
 
-        if (cellHeight > 48) {
-          var valEl = document.createElement("div");
-          valEl.style.fontSize = cellValueSize + "px";
-          valEl.style.fontWeight = cellValueWeight;
-          valEl.style.color = "rgba(255,255,255,0.9)";
-          valEl.style.lineHeight = "1.2";
-          valEl.textContent = _formatCompact(it.value, resolvedFmt);
-          cell.appendChild(valEl);
-        }
+      // Scale font based on cell dimensions
+      if (cellW < 80 || cellHeight < 50) {
+        var scaleFactor = Math.min(cellW / 80, cellHeight / 50);
+        scaleFactor = Math.max(scaleFactor, 0.45);
+        adaptLblSize = Math.max(Math.round(cellLabelSize * scaleFactor), 7);
+        adaptValSize = Math.max(Math.round(cellValueSize * scaleFactor), 6);
+      }
+
+      // Padding scales with cell size
+      var padV = cellHeight < 30 ? 2 : (cellHeight < 50 ? 4 : 8);
+      var padH = cellW < 50 ? 3 : (cellW < 80 ? 6 : 12);
+      cell.style.padding = padV + "px " + padH + "px";
+
+      // Hide value if vertically too tight for two lines
+      if (cellHeight < adaptLblSize * 1.2 + adaptValSize * 1.2 + padV * 2 + 2) {
+        showVal = false;
+      }
+
+      // Always show label
+      var lblEl = document.createElement("div");
+      lblEl.style.fontSize = adaptLblSize + "px";
+      lblEl.style.fontWeight = cellLabelWeight;
+      lblEl.style.color = "white";
+      lblEl.style.lineHeight = "1.2";
+      lblEl.style.overflow = "hidden";
+      lblEl.style.textOverflow = "ellipsis";
+      lblEl.style.whiteSpace = "nowrap";
+      lblEl.style.maxWidth = "100%";
+      lblEl.textContent = it.label;
+      cell.appendChild(lblEl);
+
+      if (showVal) {
+        var valEl = document.createElement("div");
+        valEl.style.fontSize = adaptValSize + "px";
+        valEl.style.fontWeight = cellValueWeight;
+        valEl.style.color = "rgba(255,255,255,0.9)";
+        valEl.style.lineHeight = "1.2";
+        valEl.textContent = _formatCompact(it.value, resolvedFmt);
+        cell.appendChild(valEl);
       }
 
       // Tooltip
@@ -678,9 +709,14 @@ function _buildBaseOptions() {
       values: [{ "Normal": "normal" }, { "Bold": "bold" }],
       default: "normal", section: "Summary", order: 7
     },
+    show_divider: {
+      type: "string", label: "Show Divider", display: "select",
+      values: [{ "Yes": "true" }, { "No": "false" }],
+      default: "true", section: "Summary", order: 8
+    },
     divider_color: {
       type: "string", label: "Divider Color", default: "#E5E7EB",
-      display: "color", section: "Summary", order: 8
+      display: "color", section: "Summary", order: 9
     },
 
     // -- Legend --
