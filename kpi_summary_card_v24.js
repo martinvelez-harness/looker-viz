@@ -6,7 +6,8 @@
  * Configurable color thresholds for total and breakdown values.
  *
  * Query: 1 dimension + 1..N measures.
- *   - Grid/List: uses first measure
+ *   - Select primary measure (big number) and optional subtitle measure
+ *   - Grid/List: uses primary measure for breakdown values
  *   - Table: uses all measures as columns
  *
  * Admin -> Visualizations:
@@ -20,309 +21,7 @@ looker.plugins.visualizations.add({
   id: "kpi_summary_card",
   label: "KPI Summary Card",
 
-  options: {
-    // -- Total --
-    card_title: {
-      type: "string",
-      label: "Card Title",
-      default: "",
-      placeholder: "e.g. Active Commitments",
-      section: "Total",
-      order: 0
-    },
-    card_title_color: {
-      type: "string",
-      label: "Title Color",
-      default: "#111827",
-      display: "color",
-      section: "Total",
-      order: 1
-    },
-    card_title_weight: {
-      type: "string",
-      label: "Title Font Weight",
-      display: "select",
-      values: [
-        { "Bold": "bold" },
-        { "Normal": "normal" }
-      ],
-      default: "bold",
-      section: "Total",
-      order: 2
-    },
-    total_subtitle: {
-      type: "string",
-      label: "Total Subtitle",
-      default: "Total",
-      section: "Total",
-      order: 3
-    },
-    total_subtitle_color: {
-      type: "string",
-      label: "Subtitle Color",
-      default: "#9CA3AF",
-      display: "color",
-      section: "Total",
-      order: 4
-    },
-    total_subtitle_weight: {
-      type: "string",
-      label: "Subtitle Font Weight",
-      display: "select",
-      values: [
-        { "Bold": "bold" },
-        { "Normal": "normal" }
-      ],
-      default: "normal",
-      section: "Total",
-      order: 5
-    },
-    total_font_size: {
-      type: "number",
-      label: "Value Font Size (px)",
-      default: 48,
-      section: "Total",
-      order: 6
-    },
-    total_subtitle_size: {
-      type: "number",
-      label: "Subtitle Font Size (px)",
-      default: 14,
-      section: "Total",
-      order: 7
-    },
-    total_color: {
-      type: "string",
-      label: "Value Color",
-      default: "#111827",
-      display: "color",
-      section: "Total",
-      order: 8
-    },
-    total_font_weight: {
-      type: "string",
-      label: "Value Font Weight",
-      display: "select",
-      values: [
-        { "Bold": "bold" },
-        { "Normal": "normal" }
-      ],
-      default: "bold",
-      section: "Total",
-      order: 9
-    },
-    total_use_threshold: {
-      type: "string",
-      label: "Apply Threshold to Total",
-      display: "select",
-      values: [
-        { "No": "false" },
-        { "Yes": "true" }
-      ],
-      default: "false",
-      section: "Total",
-      order: 6
-    },
-
-    // -- Breakdown --
-    breakdown_layout: {
-      type: "string",
-      label: "Layout",
-      display: "select",
-      values: [
-        { "Grid": "grid" },
-        { "List": "list" },
-        { "Table": "table" }
-      ],
-      default: "grid",
-      section: "Breakdown",
-      order: 1
-    },
-    breakdown_title: {
-      type: "string",
-      label: "Section Title",
-      default: "Breakdown by type",
-      section: "Breakdown",
-      order: 2
-    },
-    breakdown_columns: {
-      type: "string",
-      label: "Grid Columns",
-      display: "select",
-      values: [
-        { "2": "2" },
-        { "3": "3" },
-        { "4": "4" }
-      ],
-      default: "3",
-      section: "Breakdown",
-      order: 3
-    },
-    breakdown_label_size: {
-      type: "number",
-      label: "Label Font Size (px)",
-      default: 14,
-      section: "Breakdown",
-      order: 4
-    },
-    breakdown_value_size: {
-      type: "number",
-      label: "Value Font Size (px)",
-      default: 28,
-      section: "Breakdown",
-      order: 5
-    },
-    breakdown_label_color: {
-      type: "string",
-      label: "Label Color",
-      default: "#9CA3AF",
-      display: "color",
-      section: "Breakdown",
-      order: 6
-    },
-    breakdown_font_weight: {
-      type: "string",
-      label: "Value Font Weight",
-      display: "select",
-      values: [
-        { "Bold": "bold" },
-        { "Normal": "normal" }
-      ],
-      default: "bold",
-      section: "Breakdown",
-      order: 7
-    },
-    breakdown_value_color: {
-      type: "string",
-      label: "Value Color",
-      default: "#111827",
-      display: "color",
-      section: "Breakdown",
-      order: 7
-    },
-    show_dot: {
-      type: "string",
-      label: "Show Color Dot (Table)",
-      display: "select",
-      values: [
-        { "Yes": "true" },
-        { "No": "false" }
-      ],
-      default: "true",
-      section: "Breakdown",
-      order: 9
-    },
-
-    // -- Thresholds --
-    threshold_good: {
-      type: "number",
-      label: "Good >= (value)",
-      default: null,
-      section: "Thresholds",
-      order: 1
-    },
-    threshold_warning: {
-      type: "number",
-      label: "Warning >= (value)",
-      default: null,
-      section: "Thresholds",
-      order: 2
-    },
-    color_good: {
-      type: "string",
-      label: "Good Color",
-      default: "#22C55E",
-      display: "color",
-      section: "Thresholds",
-      order: 3
-    },
-    color_warning: {
-      type: "string",
-      label: "Warning Color",
-      default: "#F59E0B",
-      display: "color",
-      section: "Thresholds",
-      order: 4
-    },
-    color_danger: {
-      type: "string",
-      label: "Danger Color",
-      default: "#EF4444",
-      display: "color",
-      section: "Thresholds",
-      order: 5
-    },
-    threshold_direction: {
-      type: "string",
-      label: "Direction",
-      display: "select",
-      values: [
-        { "Higher is better": "asc" },
-        { "Lower is better": "desc" }
-      ],
-      default: "asc",
-      section: "Thresholds",
-      order: 6
-    },
-    breakdown_use_threshold: {
-      type: "string",
-      label: "Apply to Breakdown Values",
-      display: "select",
-      values: [
-        { "No": "false" },
-        { "Yes": "true" }
-      ],
-      default: "false",
-      section: "Thresholds",
-      order: 7
-    },
-
-    // -- Format --
-    value_format: {
-      type: "string",
-      label: "Value Format",
-      display: "select",
-      values: [
-        { "Auto (from query)": "auto" },
-        { "Decimal (0)": "decimal_0" },
-        { "Decimal (1)": "decimal_1" },
-        { "Decimal (2)": "decimal_2" },
-        { "USD": "usd" },
-        { "USD (0)": "usd_0" },
-        { "Percent (0)": "percent_0" },
-        { "Percent (1)": "percent_1" },
-        { "Percent (2)": "percent_2" },
-        { "Number": "number" },
-        { "Custom": "custom" }
-      ],
-      default: "auto",
-      section: "Format",
-      order: 1
-    },
-    value_format_custom: {
-      type: "string",
-      label: "Custom Format",
-      default: "",
-      placeholder: "e.g. $#,##0.00 or #,##0.0%",
-      section: "Format",
-      order: 2
-    },
-    divider_color: {
-      type: "string",
-      label: "Divider Color",
-      default: "#E5E7EB",
-      display: "color",
-      section: "Format",
-      order: 3
-    },
-    font_family: {
-      type: "string",
-      label: "Font Family",
-      default: "'Inter','Helvetica Neue',Arial,sans-serif",
-      section: "Format",
-      order: 2
-    }
-  },
+  options: {},
 
   // --------------------------------------------------
   // CREATE
@@ -382,8 +81,62 @@ looker.plugins.visualizations.add({
 
     this.clearErrors();
 
+    // -- Dynamic options registration --
+    var fieldKey = measures.map(function (f) { return f.name; }).join("|");
+    if (this._registeredFields !== fieldKey) {
+      this._registeredFields = fieldKey;
+      var dynOpts = _buildBaseOptions();
+      // Build measure select values: [{label: name},...] for primary/subtitle
+      var measureChoices = [];
+      for (var ci = 0; ci < measures.length; ci++) {
+        var lbl = measures[ci].label_short || measures[ci].label || measures[ci].name;
+        var entry = {};
+        entry[lbl] = measures[ci].name;
+        measureChoices.push(entry);
+      }
+      var subtitleChoices = [{ "None": "none" }].concat(measureChoices);
+
+      dynOpts["primary_measure"] = {
+        type: "string",
+        label: "Primary Measure",
+        display: "select",
+        values: measureChoices,
+        default: measures[0].name,
+        section: "Total",
+        order: 10
+      };
+      dynOpts["subtitle_measure"] = {
+        type: "string",
+        label: "Subtitle Measure",
+        display: "select",
+        values: subtitleChoices,
+        default: "none",
+        section: "Total",
+        order: 11
+      };
+      dynOpts["subtitle_measure_prefix"] = {
+        type: "string",
+        label: "Subtitle Measure Label",
+        default: "Total value",
+        placeholder: "e.g. Total value",
+        section: "Total",
+        order: 12
+      };
+      this.trigger("registerOptions", dynOpts);
+    }
+
     var dimField = dimensions[0];
-    var measureField = measures[0];
+
+    // -- Determine primary and subtitle measures --
+    var primaryMeasureName = config.primary_measure || measures[0].name;
+    var subtitleMeasureName = config.subtitle_measure || "none";
+    var primaryMeasureField = measures[0];
+    var subtitleMeasureField = null;
+    for (var fi = 0; fi < measures.length; fi++) {
+      if (measures[fi].name === primaryMeasureName) primaryMeasureField = measures[fi];
+      if (measures[fi].name === subtitleMeasureName) subtitleMeasureField = measures[fi];
+    }
+    var measureField = primaryMeasureField;
 
     // -- Config --
     var fontFamily       = config.font_family || "'Inter','Helvetica Neue',Arial,sans-serif";
@@ -405,7 +158,7 @@ looker.plugins.visualizations.add({
     var brkLabelColor    = config.breakdown_label_color || "#9CA3AF";
     var brkValueColor    = config.breakdown_value_color || "#111827";
     var brkFontWeight    = config.breakdown_font_weight === "normal" ? "400" : "700";
-    var showDot          = config.show_dot !== "false";
+    var dotStyle         = config.dot_style || "none";
     var vfSetting        = config.value_format || "auto";
     var vfCustom         = (config.value_format_custom || "").trim();
 
@@ -419,36 +172,60 @@ looker.plugins.visualizations.add({
     var totalUseTh       = config.total_use_threshold === "true";
     var brkUseTh         = config.breakdown_use_threshold === "true";
 
-    // Dot colors for table layout
+    // Dot colors
     var dotColors = ["#F97316", "#3B82F6", "#6366F1", "#10B981", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6"];
 
     // -- Threshold color function --
     function getThresholdColor(val) {
       if (thGood == null && thWarning == null) return null;
       if (thDirection === "asc") {
-        // Higher is better: >= good = green, >= warning = yellow, else red
         if (thGood != null && val >= thGood) return clrGood;
         if (thWarning != null && val >= thWarning) return clrWarning;
         return clrDanger;
       } else {
-        // Lower is better: <= good = green, <= warning = yellow, else red
         if (thGood != null && val <= thGood) return clrGood;
         if (thWarning != null && val <= thWarning) return clrWarning;
         return clrDanger;
       }
     }
 
+    // -- Dot helper --
+    function createDot(colorIndex) {
+      if (dotStyle === "none") return null;
+      var dot = document.createElement("div");
+      dot.style.width = "10px";
+      dot.style.height = "10px";
+      dot.style.borderRadius = "50%";
+      dot.style.flexShrink = "0";
+      var color = dotColors[colorIndex % dotColors.length];
+      if (dotStyle === "filled") {
+        dot.style.background = color;
+      } else {
+        dot.style.background = "transparent";
+        dot.style.border = "2px solid " + color;
+        dot.style.boxSizing = "border-box";
+      }
+      return dot;
+    }
+
     // -- Process data --
     var total = 0;
+    var subtitleTotal = 0;
     var breakdownItems = [];
 
     for (var i = 0; i < data.length; i++) {
       var row = data[i];
       var dimCell = row[dimField.name];
-      var measureCell = row[measureField.name];
+      var primaryCell = row[primaryMeasureField.name];
       var label = dimCell ? (dimCell.rendered || LookerCharts.Utils.textForCell(dimCell) || String(dimCell.value)) : "--";
-      var val = measureCell ? Number(measureCell.value) || 0 : 0;
+      var val = primaryCell ? Number(primaryCell.value) || 0 : 0;
       total += val;
+
+      // Sum subtitle measure
+      if (subtitleMeasureField) {
+        var subCell = row[subtitleMeasureField.name];
+        subtitleTotal += subCell ? Number(subCell.value) || 0 : 0;
+      }
 
       // Collect all measure values for table layout
       var measureValues = [];
@@ -464,13 +241,13 @@ looker.plugins.visualizations.add({
       breakdownItems.push({
         label: label,
         value: val,
-        rendered: measureCell ? measureCell.rendered : null,
-        links: measureCell ? measureCell.links : null,
+        rendered: primaryCell ? primaryCell.rendered : null,
+        links: primaryCell ? primaryCell.links : null,
         measures: measureValues
       });
     }
 
-    // -- Resolve format --
+    // -- Resolve format for primary measure --
     var resolvedFormat = null;
     var useRendered = true;
     if (vfSetting === "custom" && vfCustom) {
@@ -480,8 +257,7 @@ looker.plugins.visualizations.add({
       resolvedFormat = _resolveNamedFormat(vfSetting);
       useRendered = false;
     } else {
-      // Auto: detect from Looker field metadata or rendered values
-      var lkFmt = measureField.value_format;
+      var lkFmt = primaryMeasureField.value_format;
       if (lkFmt) {
         resolvedFormat = lkFmt;
       } else if (breakdownItems.length > 0 && breakdownItems[0].rendered) {
@@ -496,6 +272,25 @@ looker.plugins.visualizations.add({
       }
     }
     if (!resolvedFormat) resolvedFormat = "#,##0";
+
+    // -- Resolve format for subtitle measure --
+    var subtitleFormat = "#,##0";
+    if (subtitleMeasureField) {
+      var sfmt = subtitleMeasureField.value_format;
+      if (sfmt) {
+        subtitleFormat = sfmt;
+      } else if (data.length > 0) {
+        var sCell = data[0][subtitleMeasureField.name];
+        if (sCell && sCell.rendered) {
+          var sr = sCell.rendered;
+          if (sr.indexOf('%') !== -1) subtitleFormat = "#,##0.0%";
+          else if (sr.indexOf('$') !== -1) {
+            var sdm = sr.match(/\.(\d+)/);
+            subtitleFormat = "$#,##0" + (sdm ? "." + "0".repeat(sdm[1].length) : "");
+          }
+        }
+      }
+    }
 
     // -- Format helper --
     function formatVal(num, rendered) {
@@ -543,13 +338,26 @@ looker.plugins.visualizations.add({
     }
     totalSection.appendChild(totalValueEl);
 
-    var totalSubEl = document.createElement("div");
-    totalSubEl.style.fontSize = subtitleSize + "px";
-    totalSubEl.style.color = subtitleColor;
-    totalSubEl.style.fontWeight = subtitleWeight;
-    totalSubEl.style.marginTop = "4px";
-    totalSubEl.textContent = totalSubtitle;
-    totalSection.appendChild(totalSubEl);
+    // -- Subtitle: text or measure value --
+    if (subtitleMeasureField) {
+      var subPrefix = config.subtitle_measure_prefix || "Total value";
+      var subValFormatted = formatNumber(subtitleTotal, subtitleFormat);
+      var totalSubEl = document.createElement("div");
+      totalSubEl.style.fontSize = subtitleSize + "px";
+      totalSubEl.style.color = subtitleColor;
+      totalSubEl.style.fontWeight = subtitleWeight;
+      totalSubEl.style.marginTop = "4px";
+      totalSubEl.textContent = subPrefix + ": " + subValFormatted;
+      totalSection.appendChild(totalSubEl);
+    } else {
+      var totalSubEl2 = document.createElement("div");
+      totalSubEl2.style.fontSize = subtitleSize + "px";
+      totalSubEl2.style.color = subtitleColor;
+      totalSubEl2.style.fontWeight = subtitleWeight;
+      totalSubEl2.style.marginTop = "4px";
+      totalSubEl2.textContent = totalSubtitle;
+      totalSection.appendChild(totalSubEl2);
+    }
 
     container.appendChild(totalSection);
 
@@ -587,12 +395,20 @@ looker.plugins.visualizations.add({
         cell.style.flexDirection = "column";
         cell.style.gap = "2px";
 
-        var cellLabel = document.createElement("div");
+        // Label row with optional dot
+        var labelRow = document.createElement("div");
+        labelRow.style.display = "flex";
+        labelRow.style.alignItems = "center";
+        labelRow.style.gap = "6px";
+        var gdot = createDot(j);
+        if (gdot) labelRow.appendChild(gdot);
+        var cellLabel = document.createElement("span");
         cellLabel.style.fontSize = brkLabelSize + "px";
         cellLabel.style.color = brkLabelColor;
         cellLabel.style.fontWeight = "500";
         cellLabel.textContent = item.label;
-        cell.appendChild(cellLabel);
+        labelRow.appendChild(cellLabel);
+        cell.appendChild(labelRow);
 
         var cellValue = document.createElement("div");
         cellValue.style.fontSize = brkValueSize + "px";
@@ -625,21 +441,29 @@ looker.plugins.visualizations.add({
       for (var li = 0; li < breakdownItems.length; li++) {
         var lItem = breakdownItems[li];
 
-        var row = document.createElement("div");
-        row.style.display = "flex";
-        row.style.justifyContent = "space-between";
-        row.style.alignItems = "center";
-        row.style.padding = "8px 0";
+        var lRow = document.createElement("div");
+        lRow.style.display = "flex";
+        lRow.style.justifyContent = "space-between";
+        lRow.style.alignItems = "center";
+        lRow.style.padding = "8px 0";
         if (li < breakdownItems.length - 1) {
-          row.style.borderBottom = "1px solid #F3F4F6";
+          lRow.style.borderBottom = "1px solid #F3F4F6";
         }
 
-        var rowLabel = document.createElement("div");
+        // Label with optional dot
+        var lLabelWrap = document.createElement("div");
+        lLabelWrap.style.display = "flex";
+        lLabelWrap.style.alignItems = "center";
+        lLabelWrap.style.gap = "8px";
+        var ldot = createDot(li);
+        if (ldot) lLabelWrap.appendChild(ldot);
+        var rowLabel = document.createElement("span");
         rowLabel.style.fontSize = brkLabelSize + "px";
         rowLabel.style.color = brkLabelColor;
         rowLabel.style.fontWeight = "500";
         rowLabel.textContent = lItem.label;
-        row.appendChild(rowLabel);
+        lLabelWrap.appendChild(rowLabel);
+        lRow.appendChild(lLabelWrap);
 
         var rowValue = document.createElement("div");
         rowValue.style.fontSize = brkValueSize + "px";
@@ -652,10 +476,10 @@ looker.plugins.visualizations.add({
         } else {
           rowValue.style.color = brkValueColor;
         }
-        row.appendChild(rowValue);
+        lRow.appendChild(rowValue);
 
-        addDrill(row, lItem.links);
-        list.appendChild(row);
+        addDrill(lRow, lItem.links);
+        list.appendChild(lRow);
       }
       container.appendChild(list);
     }
@@ -682,15 +506,8 @@ looker.plugins.visualizations.add({
         }
 
         // Color dot
-        if (showDot) {
-          var dot = document.createElement("div");
-          dot.style.width = "10px";
-          dot.style.height = "10px";
-          dot.style.borderRadius = "50%";
-          dot.style.flexShrink = "0";
-          dot.style.background = dotColors[ti % dotColors.length];
-          tRow.appendChild(dot);
-        }
+        var tdot = createDot(ti);
+        if (tdot) tRow.appendChild(tdot);
 
         // Label
         var tLabel = document.createElement("div");
@@ -710,7 +527,7 @@ looker.plugins.visualizations.add({
           mEl.style.fontSize = brkLabelSize + "px";
           mEl.style.fontWeight = brkFontWeight;
 
-          var mRendered = mv.rendered || formatNumber(mv.value, detectedFormat);
+          var mRendered = mv.rendered || formatNumber(mv.value, resolvedFormat);
           mEl.textContent = mRendered;
 
           if (brkUseTh && mj === 0) {
@@ -748,6 +565,164 @@ looker.plugins.visualizations.add({
 
 });
 
+
+// --------------------------------------------------
+// Base options builder
+// --------------------------------------------------
+function _buildBaseOptions() {
+  return {
+    // -- Total --
+    card_title: {
+      type: "string", label: "Card Title", default: "",
+      placeholder: "e.g. Active Commitments", section: "Total", order: 0
+    },
+    card_title_color: {
+      type: "string", label: "Title Color", default: "#111827",
+      display: "color", section: "Total", order: 1
+    },
+    card_title_weight: {
+      type: "string", label: "Title Font Weight", display: "select",
+      values: [{ "Bold": "bold" }, { "Normal": "normal" }],
+      default: "bold", section: "Total", order: 2
+    },
+    total_subtitle: {
+      type: "string", label: "Total Subtitle", default: "Total",
+      section: "Total", order: 3
+    },
+    total_subtitle_color: {
+      type: "string", label: "Subtitle Color", default: "#9CA3AF",
+      display: "color", section: "Total", order: 4
+    },
+    total_subtitle_weight: {
+      type: "string", label: "Subtitle Font Weight", display: "select",
+      values: [{ "Bold": "bold" }, { "Normal": "normal" }],
+      default: "normal", section: "Total", order: 5
+    },
+    total_font_size: {
+      type: "number", label: "Value Font Size (px)", default: 48,
+      section: "Total", order: 6
+    },
+    total_subtitle_size: {
+      type: "number", label: "Subtitle Font Size (px)", default: 14,
+      section: "Total", order: 7
+    },
+    total_color: {
+      type: "string", label: "Value Color", default: "#111827",
+      display: "color", section: "Total", order: 8
+    },
+    total_font_weight: {
+      type: "string", label: "Value Font Weight", display: "select",
+      values: [{ "Bold": "bold" }, { "Normal": "normal" }],
+      default: "bold", section: "Total", order: 9
+    },
+    total_use_threshold: {
+      type: "string", label: "Apply Threshold to Total", display: "select",
+      values: [{ "No": "false" }, { "Yes": "true" }],
+      default: "false", section: "Total", order: 13
+    },
+
+    // -- Breakdown --
+    breakdown_layout: {
+      type: "string", label: "Layout", display: "select",
+      values: [{ "Grid": "grid" }, { "List": "list" }, { "Table": "table" }],
+      default: "grid", section: "Breakdown", order: 1
+    },
+    breakdown_title: {
+      type: "string", label: "Section Title", default: "Breakdown by type",
+      section: "Breakdown", order: 2
+    },
+    breakdown_columns: {
+      type: "string", label: "Grid Columns", display: "select",
+      values: [{ "2": "2" }, { "3": "3" }, { "4": "4" }],
+      default: "3", section: "Breakdown", order: 3
+    },
+    breakdown_label_size: {
+      type: "number", label: "Label Font Size (px)", default: 14,
+      section: "Breakdown", order: 4
+    },
+    breakdown_value_size: {
+      type: "number", label: "Value Font Size (px)", default: 28,
+      section: "Breakdown", order: 5
+    },
+    breakdown_label_color: {
+      type: "string", label: "Label Color", default: "#9CA3AF",
+      display: "color", section: "Breakdown", order: 6
+    },
+    breakdown_font_weight: {
+      type: "string", label: "Value Font Weight", display: "select",
+      values: [{ "Bold": "bold" }, { "Normal": "normal" }],
+      default: "bold", section: "Breakdown", order: 7
+    },
+    breakdown_value_color: {
+      type: "string", label: "Value Color", default: "#111827",
+      display: "color", section: "Breakdown", order: 8
+    },
+    dot_style: {
+      type: "string", label: "Color Dot", display: "select",
+      values: [{ "None": "none" }, { "Filled": "filled" }, { "Outlined": "outlined" }],
+      default: "none", section: "Breakdown", order: 9
+    },
+
+    // -- Thresholds --
+    threshold_good: {
+      type: "number", label: "Good >= (value)", default: null,
+      section: "Thresholds", order: 1
+    },
+    threshold_warning: {
+      type: "number", label: "Warning >= (value)", default: null,
+      section: "Thresholds", order: 2
+    },
+    color_good: {
+      type: "string", label: "Good Color", default: "#22C55E",
+      display: "color", section: "Thresholds", order: 3
+    },
+    color_warning: {
+      type: "string", label: "Warning Color", default: "#F59E0B",
+      display: "color", section: "Thresholds", order: 4
+    },
+    color_danger: {
+      type: "string", label: "Danger Color", default: "#EF4444",
+      display: "color", section: "Thresholds", order: 5
+    },
+    threshold_direction: {
+      type: "string", label: "Direction", display: "select",
+      values: [{ "Higher is better": "asc" }, { "Lower is better": "desc" }],
+      default: "asc", section: "Thresholds", order: 6
+    },
+    breakdown_use_threshold: {
+      type: "string", label: "Apply to Breakdown Values", display: "select",
+      values: [{ "No": "false" }, { "Yes": "true" }],
+      default: "false", section: "Thresholds", order: 7
+    },
+
+    // -- Format --
+    value_format: {
+      type: "string", label: "Value Format", display: "select",
+      values: [
+        { "Auto (from query)": "auto" }, { "Decimal (0)": "decimal_0" },
+        { "Decimal (1)": "decimal_1" }, { "Decimal (2)": "decimal_2" },
+        { "USD": "usd" }, { "USD (0)": "usd_0" },
+        { "Percent (0)": "percent_0" }, { "Percent (1)": "percent_1" },
+        { "Percent (2)": "percent_2" }, { "Number": "number" },
+        { "Custom": "custom" }
+      ],
+      default: "auto", section: "Format", order: 1
+    },
+    value_format_custom: {
+      type: "string", label: "Custom Format", default: "",
+      placeholder: "e.g. $#,##0.00 or #,##0.0%", section: "Format", order: 2
+    },
+    divider_color: {
+      type: "string", label: "Divider Color", default: "#E5E7EB",
+      display: "color", section: "Format", order: 3
+    },
+    font_family: {
+      type: "string", label: "Font Family",
+      default: "'Inter','Helvetica Neue',Arial,sans-serif",
+      section: "Format", order: 4
+    }
+  };
+}
 
 // --------------------------------------------------
 // Helpers
