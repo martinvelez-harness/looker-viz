@@ -58,6 +58,36 @@ looker.plugins.visualizations.add({
       document.head.appendChild(st);
     }
 
+    // Custom tooltip
+    var tooltipEl = document.getElementById("_skc_tooltip");
+    if (!tooltipEl) {
+      tooltipEl = document.createElement("div");
+      tooltipEl.id = "_skc_tooltip";
+      tooltipEl.style.cssText = "position:fixed;pointer-events:none;z-index:99999;background:rgba(17,24,39,0.92);color:#fff;font-family:'Inter','Helvetica Neue',Arial,sans-serif;font-size:13px;padding:8px 12px;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.25);white-space:nowrap;opacity:0;transition:opacity 0.15s;line-height:1.5;";
+      document.body.appendChild(tooltipEl);
+    }
+    tooltipEl.style.opacity = "0";
+
+    function showTooltip(e, html) {
+      tooltipEl.innerHTML = html;
+      tooltipEl.style.opacity = "1";
+      var tx = e.clientX + 12;
+      var ty = e.clientY - 10;
+      var tw = tooltipEl.offsetWidth;
+      if (tx + tw > window.innerWidth - 8) tx = e.clientX - tw - 12;
+      tooltipEl.style.left = tx + "px";
+      tooltipEl.style.top = ty + "px";
+    }
+    function moveTooltip(e) {
+      var tx = e.clientX + 12;
+      var ty = e.clientY - 10;
+      var tw = tooltipEl.offsetWidth;
+      if (tx + tw > window.innerWidth - 8) tx = e.clientX - tw - 12;
+      tooltipEl.style.left = tx + "px";
+      tooltipEl.style.top = ty + "px";
+    }
+    function hideTooltip() { tooltipEl.style.opacity = "0"; }
+
     // -- Validate --
     var dimensions = queryResponse.fields.dimension_like || queryResponse.fields.dimensions || [];
     var measures = queryResponse.fields.measure_like || [];
@@ -460,20 +490,26 @@ looker.plugins.visualizations.add({
         }
         if (isTop) barRect.setAttribute("rx", "3");
 
-        // Native tooltip
-        var tip = document.createElementNS(ns, "title");
-        tip.textContent = chartData[bi].group + " - " + (seriesLabels[sv.key] || sv.key) + ": " + _formatCompact(sv.value, resolvedFmt);
-        barRect.appendChild(tip);
+        // Custom tooltip
+        (function (group, seriesLabel, value, links, color) {
+          var tipHtml = '<div style="font-weight:600;margin-bottom:2px;">' + group + '</div>'
+            + '<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' + color + ';margin-right:6px;vertical-align:middle;"></span>'
+            + '<span style="color:#D1D5DB;">' + seriesLabel + ':</span> '
+            + '<span style="font-weight:700;">' + _formatCompact(value, resolvedFmt) + '</span>';
 
-        // Drill support
-        if (sv.links && sv.links.length > 0) {
-          barRect.style.cursor = "pointer";
-          (function (links) {
+          barRect.addEventListener("mouseenter", function (e) { showTooltip(e, tipHtml); });
+          barRect.addEventListener("mousemove", moveTooltip);
+          barRect.addEventListener("mouseleave", hideTooltip);
+
+          // Drill support
+          if (links && links.length > 0) {
+            barRect.style.cursor = "pointer";
             barRect.addEventListener("click", function (e) {
+              hideTooltip();
               LookerCharts.Utils.openDrillMenu({ links: links, event: e });
             });
-          })(sv.links);
-        }
+          }
+        })(chartData[bi].group, seriesLabels[sv.key] || sv.key, sv.value, sv.links, seriesColors[sv.key]);
 
         svg.appendChild(barRect);
       }
