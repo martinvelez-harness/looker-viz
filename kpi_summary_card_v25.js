@@ -1,5 +1,6 @@
 /**
  * KPI Summary Card -- Looker Custom Visualization
+ * Developed by Martin Velez
  *
  * Displays a total KPI value at the top with a breakdown below.
  * Three breakdown layouts: Grid, List, Table.
@@ -122,6 +123,31 @@ looker.plugins.visualizations.add({
         section: "Total",
         order: 12
       };
+
+      // Per-measure value format options
+      var vfValues = [
+        { "Auto (from query)": "auto" }, { "Decimal (0)": "decimal_0" },
+        { "Decimal (1)": "decimal_1" }, { "Decimal (2)": "decimal_2" },
+        { "USD": "usd" }, { "USD (0)": "usd_0" },
+        { "Percent (0)": "percent_0" }, { "Percent (1)": "percent_1" },
+        { "Percent (2)": "percent_2" }, { "Number": "number" },
+        { "Custom": "custom" }
+      ];
+      for (var moi = 0; moi < measures.length; moi++) {
+        var mLbl = measures[moi].label_short || measures[moi].label || measures[moi].name;
+        var mSafe = _safeKey(measures[moi].name);
+        dynOpts["measure_" + mSafe + "_format"] = {
+          type: "string", label: mLbl + " | Value Format",
+          display: "select", values: vfValues,
+          default: "auto", section: "Series", order: moi * 10
+        };
+        dynOpts["measure_" + mSafe + "_format_custom"] = {
+          type: "string", label: mLbl + " | Custom Format",
+          default: "", placeholder: "e.g. $#,##0.00",
+          section: "Series", order: moi * 10 + 1
+        };
+      }
+
       this.trigger("registerOptions", dynOpts);
     }
 
@@ -136,7 +162,6 @@ looker.plugins.visualizations.add({
       if (measures[fi].name === primaryMeasureName) primaryMeasureField = measures[fi];
       if (measures[fi].name === subtitleMeasureName) subtitleMeasureField = measures[fi];
     }
-    var measureField = primaryMeasureField;
 
     // -- Config --
     var fontFamily       = config.font_family || "'Inter','Helvetica Neue',Arial,sans-serif";
@@ -273,29 +298,50 @@ looker.plugins.visualizations.add({
     }
     if (!resolvedFormat) resolvedFormat = "#,##0";
 
-    // -- Resolve format for subtitle measure --
-    var subtitleFormat = "#,##0";
-    if (subtitleMeasureField) {
-      var sfmt = subtitleMeasureField.value_format;
-      if (sfmt) {
-        subtitleFormat = sfmt;
-      } else if (data.length > 0) {
-        var sCell = data[0][subtitleMeasureField.name];
-        if (sCell && sCell.rendered) {
-          var sr = sCell.rendered;
-          if (sr.indexOf('%') !== -1) subtitleFormat = "#,##0.0%";
-          else if (sr.indexOf('$') !== -1) {
-            var sdm = sr.match(/\.(\d+)/);
-            subtitleFormat = "$#,##0" + (sdm ? "." + "0".repeat(sdm[1].length) : "");
+    // -- Per-measure format resolver --
+    var measureFormats = {};
+    for (var fmi = 0; fmi < measures.length; fmi++) {
+      var fmKey = _safeKey(measures[fmi].name);
+      var fmSetting = config["measure_" + fmKey + "_format"] || "auto";
+      var fmCustom = (config["measure_" + fmKey + "_format_custom"] || "").trim();
+      var fmResolved = null;
+
+      if (fmSetting === "custom" && fmCustom) {
+        fmResolved = fmCustom;
+      } else if (fmSetting !== "auto") {
+        fmResolved = _resolveNamedFormat(fmSetting);
+      } else {
+        var mfmt = measures[fmi].value_format;
+        if (mfmt) {
+          fmResolved = mfmt;
+        } else if (data.length > 0) {
+          var fmCell = data[0][measures[fmi].name];
+          if (fmCell && fmCell.rendered) {
+            var fmr = fmCell.rendered;
+            if (fmr.indexOf("%") !== -1) fmResolved = "#,##0.0%";
+            else if (fmr.indexOf("$") !== -1) {
+              var fmdm = fmr.match(/\.(\d+)/);
+              fmResolved = "$#,##0" + (fmdm ? "." + "0".repeat(fmdm[1].length) : "");
+            }
           }
         }
       }
+      measureFormats[measures[fmi].name] = fmResolved || "#,##0";
     }
 
-    // -- Format helper --
+    // Format helper for primary total
     function formatVal(num, rendered) {
       if (useRendered && rendered) return rendered;
       return formatNumber(num, resolvedFormat);
+    }
+
+    // Format helper for a specific measure by index
+    function formatMeasureVal(measureIndex, num, rendered) {
+      var mName = measures[measureIndex] ? measures[measureIndex].name : null;
+      var mFmt = mName ? measureFormats[mName] : resolvedFormat;
+      var mSetting = mName ? (config["measure_" + _safeKey(mName) + "_format"] || "auto") : "auto";
+      if (mSetting === "auto" && rendered) return rendered;
+      return formatNumber(num, mFmt);
     }
 
     // -- Build layout --
@@ -338,26 +384,46 @@ looker.plugins.visualizations.add({
     }
     totalSection.appendChild(totalValueEl);
 
-    // -- Subtitle: text or measure value --
-    if (subtitleMeasureField) {
-      var subPrefix = config.subtitle_measure_prefix || "Total value";
-      var subValFormatted = formatNumber(subtitleTotal, subtitleFormat);
-      var totalSubEl = document.createElement("div");
-      totalSubEl.style.fontSize = subtitleSize + "px";
-      totalSubEl.style.color = subtitleColor;
-      totalSubEl.style.fontWeight = subtitleWeight;
-      totalSubEl.style.marginTop = "4px";
-      totalSubEl.textContent = subPrefix + ": " + subValFormatted;
-      totalSection.appendChild(totalSubEl);
-    } else {
-      var totalSubEl2 = document.createElement("div");
-      totalSubEl2.style.fontSize = subtitleSize + "px";
-      totalSubEl2.style.color = subtitleColor;
-      totalSubEl2.style.fontWeight = subtitleWeight;
-      totalSubEl2.style.marginTop = "4px";
-      totalSubEl2.textContent = totalSubtitle;
-      totalSection.appendChild(totalSubEl2);
+    // -- Subtitle: label + secondary measure total --
+    var totalSubEl = document.createElement("div");
+    totalSubEl.style.fontSize = subtitleSize + "px";
+    totalSubEl.style.color = subtitleColor;
+    totalSubEl.style.fontWeight = subtitleWeight;
+    totalSubEl.style.marginTop = "4px";
+
+    // Find the non-primary measure for subtitle value
+    var secondaryField = subtitleMeasureField;
+    var secondaryTotal = subtitleTotal;
+    if (!secondaryField && measures.length > 1) {
+      for (var sm = 0; sm < measures.length; sm++) {
+        if (measures[sm].name !== primaryMeasureField.name) {
+          secondaryField = measures[sm];
+          secondaryTotal = 0;
+          for (var sd = 0; sd < data.length; sd++) {
+            var sdc = data[sd][secondaryField.name];
+            secondaryTotal += sdc ? Number(sdc.value) || 0 : 0;
+          }
+          break;
+        }
+      }
     }
+    var secondaryFmt = secondaryField ? measureFormats[secondaryField.name] : "#,##0";
+
+    var subValueColor = config.subtitle_value_color || subtitleColor;
+    if (secondaryField) {
+      var subPrefix = config.subtitle_measure_prefix || "Total value";
+      var subLblSpan = document.createElement("span");
+      subLblSpan.style.color = subtitleColor;
+      subLblSpan.textContent = subPrefix + ": ";
+      var subValSpan = document.createElement("span");
+      subValSpan.style.color = subValueColor;
+      subValSpan.textContent = formatNumber(secondaryTotal, secondaryFmt);
+      totalSubEl.appendChild(subLblSpan);
+      totalSubEl.appendChild(subValSpan);
+    } else {
+      totalSubEl.textContent = totalSubtitle;
+    }
+    totalSection.appendChild(totalSubEl);
 
     container.appendChild(totalSection);
 
@@ -416,7 +482,7 @@ looker.plugins.visualizations.add({
           cellValue.style.fontSize = (gmi === 0 ? brkValueSize : brkLabelSize) + "px";
           cellValue.style.fontWeight = gmi === 0 ? brkFontWeight : "400";
           cellValue.style.lineHeight = "1.2";
-          cellValue.textContent = gmv.rendered || formatNumber(gmv.value, resolvedFormat);
+          cellValue.textContent = formatMeasureVal(gmi, gmv.value, gmv.rendered);
           if (brkUseTh && gmi === 0) {
             var c = getThresholdColor(gmv.value);
             cellValue.style.color = c || brkValueColor;
@@ -474,7 +540,7 @@ looker.plugins.visualizations.add({
           lmEl.style.minWidth = "60px";
           lmEl.style.fontSize = brkLabelSize + "px";
           lmEl.style.fontWeight = brkFontWeight;
-          lmEl.textContent = lmv.rendered || formatNumber(lmv.value, resolvedFormat);
+          lmEl.textContent = formatMeasureVal(lmi, lmv.value, lmv.rendered);
           if (brkUseTh && lmi === 0) {
             var lmc = getThresholdColor(lmv.value);
             lmEl.style.color = lmc || brkValueColor;
@@ -534,7 +600,7 @@ looker.plugins.visualizations.add({
           mEl.style.fontSize = brkLabelSize + "px";
           mEl.style.fontWeight = brkFontWeight;
 
-          var mRendered = mv.rendered || formatNumber(mv.value, resolvedFormat);
+          var mRendered = formatMeasureVal(mj, mv.value, mv.rendered);
           mEl.textContent = mRendered;
 
           if (brkUseTh && mj === 0) {
@@ -604,6 +670,10 @@ function _buildBaseOptions() {
       type: "string", label: "Subtitle Font Weight", display: "select",
       values: [{ "Bold": "bold" }, { "Normal": "normal" }],
       default: "normal", section: "Total", order: 5
+    },
+    subtitle_value_color: {
+      type: "string", label: "Subtitle Value Color", default: "#111827",
+      display: "color", section: "Total", order: 6
     },
     total_font_size: {
       type: "number", label: "Value Font Size (px)", default: 48,
@@ -734,6 +804,10 @@ function _buildBaseOptions() {
 // --------------------------------------------------
 // Helpers
 // --------------------------------------------------
+function _safeKey(key) {
+  return String(key).replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+}
+
 function _resolveNamedFormat(name) {
   var map = {
     "decimal_0": "#,##0",
