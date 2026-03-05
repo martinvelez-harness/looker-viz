@@ -27,13 +27,53 @@ looker.plugins.visualizations.add({
       section: "General",
       order: 1
     },
+    card_title_color: {
+      type: "string",
+      label: "Title Color",
+      default: "#111827",
+      display: "color",
+      section: "General",
+      order: 2
+    },
+    card_title_weight: {
+      type: "string",
+      label: "Title Font Weight",
+      display: "select",
+      values: [
+        { "Bold": "bold" },
+        { "Normal": "normal" }
+      ],
+      default: "bold",
+      section: "General",
+      order: 3
+    },
     card_subtitle: {
       type: "string",
       label: "Subtitle (below primary)",
       default: "",
       placeholder: "e.g. Wasted commitment spend",
       section: "General",
-      order: 2
+      order: 4
+    },
+    card_subtitle_color: {
+      type: "string",
+      label: "Subtitle Color",
+      default: "#9CA3AF",
+      display: "color",
+      section: "General",
+      order: 5
+    },
+    card_subtitle_weight: {
+      type: "string",
+      label: "Subtitle Font Weight",
+      display: "select",
+      values: [
+        { "Bold": "bold" },
+        { "Normal": "normal" }
+      ],
+      default: "normal",
+      section: "General",
+      order: 6
     },
     primary_font_size: {
       type: "number",
@@ -64,12 +104,20 @@ looker.plugins.visualizations.add({
       section: "General",
       order: 6
     },
+    divider_color: {
+      type: "string",
+      label: "Divider Color",
+      default: "#E5E7EB",
+      display: "color",
+      section: "General",
+      order: 7
+    },
     font_family: {
       type: "string",
       label: "Font Family",
       default: "'Inter','Helvetica Neue',Arial,sans-serif",
       section: "General",
-      order: 7
+      order: 8
     }
   },
 
@@ -146,14 +194,6 @@ looker.plugins.visualizations.add({
         // Each series block of 20 order slots to keep them grouped
         var base = 100 + (oi * 20);
 
-        // Header separator label
-        dynOpts[prefix + "_header"] = {
-          type: "string",
-          label: "--- " + tag + " ---",
-          default: "",
-          section: sec,
-          order: base
-        };
         dynOpts[prefix + "role"] = {
           type: "string",
           label: tag + " | Role",
@@ -315,7 +355,11 @@ looker.plugins.visualizations.add({
     // -- Config --
     var fontFamily     = config.font_family || "'Inter','Helvetica Neue',Arial,sans-serif";
     var cardTitle      = (config.card_title || "").trim();
+    var cardTitleColor = config.card_title_color || "#111827";
+    var cardTitleWeight = config.card_title_weight === "normal" ? "400" : "700";
     var cardSubtitle   = (config.card_subtitle || "").trim();
+    var cardSubColor   = config.card_subtitle_color || "#9CA3AF";
+    var cardSubWeight  = config.card_subtitle_weight === "bold" ? "700" : "400";
     var primaryFS      = Number(config.primary_font_size) || 48;
     var secondaryFS    = Number(config.secondary_font_size) || 16;
     var secLabelSize   = Number(config.secondary_label_size) || 14;
@@ -430,8 +474,8 @@ looker.plugins.visualizations.add({
     if (cardTitle) {
       var titleEl = document.createElement("div");
       titleEl.style.fontSize = "16px";
-      titleEl.style.fontWeight = "700";
-      titleEl.style.color = "#111827";
+      titleEl.style.fontWeight = cardTitleWeight;
+      titleEl.style.color = cardTitleColor;
       titleEl.style.marginBottom = "8px";
       titleEl.textContent = cardTitle;
       container.appendChild(titleEl);
@@ -466,7 +510,8 @@ looker.plugins.visualizations.add({
         if (cardSubtitle && si === 0) {
           var subEl = document.createElement("div");
           subEl.style.fontSize = "14px";
-          subEl.style.color = "#9CA3AF";
+          subEl.style.color = cardSubColor;
+          subEl.style.fontWeight = cardSubWeight;
           subEl.style.marginTop = "4px";
           subEl.textContent = cardSubtitle;
           container.appendChild(subEl);
@@ -511,7 +556,7 @@ looker.plugins.visualizations.add({
       if (s.dividerAfter) {
         var div = document.createElement("div");
         div.style.height = "1px";
-        div.style.background = "#E5E7EB";
+        div.style.background = config.divider_color || "#E5E7EB";
         div.style.margin = "12px 0";
         container.appendChild(div);
       }
@@ -537,13 +582,53 @@ function buildBaseOptions() {
       section: "General",
       order: 1
     },
+    card_title_color: {
+      type: "string",
+      label: "Title Color",
+      default: "#111827",
+      display: "color",
+      section: "General",
+      order: 2
+    },
+    card_title_weight: {
+      type: "string",
+      label: "Title Font Weight",
+      display: "select",
+      values: [
+        { "Bold": "bold" },
+        { "Normal": "normal" }
+      ],
+      default: "bold",
+      section: "General",
+      order: 3
+    },
     card_subtitle: {
       type: "string",
       label: "Subtitle (below primary)",
       default: "",
       placeholder: "e.g. Wasted commitment spend",
       section: "General",
-      order: 2
+      order: 4
+    },
+    card_subtitle_color: {
+      type: "string",
+      label: "Subtitle Color",
+      default: "#9CA3AF",
+      display: "color",
+      section: "General",
+      order: 5
+    },
+    card_subtitle_weight: {
+      type: "string",
+      label: "Subtitle Font Weight",
+      display: "select",
+      values: [
+        { "Bold": "bold" },
+        { "Normal": "normal" }
+      ],
+      default: "normal",
+      section: "General",
+      order: 6
     },
     primary_font_size: {
       type: "number",
@@ -574,12 +659,20 @@ function buildBaseOptions() {
       section: "General",
       order: 6
     },
+    divider_color: {
+      type: "string",
+      label: "Divider Color",
+      default: "#E5E7EB",
+      display: "color",
+      section: "General",
+      order: 7
+    },
     font_family: {
       type: "string",
       label: "Font Family",
       default: "'Inter','Helvetica Neue',Arial,sans-serif",
       section: "General",
-      order: 7
+      order: 8
     }
   };
 }
