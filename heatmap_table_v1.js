@@ -73,6 +73,11 @@ looker.plugins.visualizations.add({
       values: [{ "Left": "left" }, { "Center": "center" }, { "Right": "right" }],
       default: "left", section: "Legend", order: 4
     },
+    legend_font_weight: {
+      type: "string", label: "Legend Font Weight", display: "select",
+      values: [{ "Normal": "normal" }, { "Bold": "bold" }],
+      default: "normal", section: "Legend", order: 5
+    },
 
     // -- Table --
     header_label: {
@@ -100,15 +105,30 @@ looker.plugins.visualizations.add({
       type: "number", label: "Cell Gap (px)", default: 4,
       section: "Table", order: 6
     },
+    col_header_font_weight: {
+      type: "string", label: "Column Header Font Weight", display: "select",
+      values: [{ "Bold": "bold" }, { "Normal": "normal" }],
+      default: "bold", section: "Table", order: 7
+    },
+    row_header_font_weight: {
+      type: "string", label: "Row Header Font Weight", display: "select",
+      values: [{ "Semi-Bold": "600" }, { "Bold": "bold" }, { "Normal": "normal" }],
+      default: "600", section: "Table", order: 8
+    },
+    cell_value_font_weight: {
+      type: "string", label: "Cell Value Font Weight", display: "select",
+      values: [{ "Bold": "bold" }, { "Normal": "normal" }],
+      default: "bold", section: "Table", order: 9
+    },
     font_family: {
       type: "string", label: "Font Family",
       default: "'Inter','Helvetica Neue',Arial,sans-serif",
-      section: "Table", order: 7
+      section: "Table", order: 10
     },
     value_is_percentage: {
       type: "string", label: "Values are Percentages", display: "select",
       values: [{ "Yes (0-1 or 0-100)": "true" }, { "No (raw numbers)": "false" }],
-      default: "true", section: "Table", order: 8
+      default: "true", section: "Table", order: 11
     }
   },
 
@@ -123,7 +143,7 @@ looker.plugins.visualizations.add({
     element.style.justifyContent = "center";
     element.style.width = "100%";
     element.style.height = "100%";
-    element.style.overflow = "auto";
+    element.style.overflow = "hidden";
     element.style.background = "white";
     element.style.padding = "0";
     element.style.margin = "0";
@@ -135,6 +155,23 @@ looker.plugins.visualizations.add({
   // ──────────────────────────────────────────────
   updateAsync: function (data, element, config, queryResponse, details, doneRendering) {
     element.innerHTML = "";
+    element.style.overflow = "hidden";
+    element.style.padding = "0";
+    element.style.margin = "0";
+
+    // Kill scrollbars on ancestors
+    var parent = element.parentElement;
+    while (parent && parent !== document.body) {
+      parent.style.overflow = "hidden";
+      parent.style.padding = "0";
+      parent = parent.parentElement;
+    }
+    if (!document.getElementById("_heatmap_reset_css")) {
+      var st = document.createElement("style");
+      st.id = "_heatmap_reset_css";
+      st.textContent = "#vis, #vis-container, .looker-vis-context { padding:0!important; margin:0!important; overflow:hidden!important; }";
+      document.head.appendChild(st);
+    }
 
     // ── Validate ──
     if (!data || data.length === 0) {
@@ -181,6 +218,12 @@ looker.plugins.visualizations.add({
     var cellGap      = config.cell_gap != null ? Number(config.cell_gap) : 4;
     var fontFamily   = config.font_family || "'Inter','Helvetica Neue',Arial,sans-serif";
     var isPercentage = config.value_is_percentage !== "false";
+    var legendFw     = config.legend_font_weight === "bold" ? "700" : "400";
+    var colHeaderFw  = config.col_header_font_weight === "normal" ? "400" : "700";
+    var rowHeaderFw  = config.row_header_font_weight || "600";
+    if (rowHeaderFw === "bold") rowHeaderFw = "700";
+    if (rowHeaderFw === "normal") rowHeaderFw = "400";
+    var cellValueFw  = config.cell_value_font_weight === "normal" ? "400" : "700";
 
     // ── Extract pivot keys ──
     var pivotKeys = [];
@@ -303,6 +346,7 @@ looker.plugins.visualizations.add({
         var lbl = document.createElement("span");
         lbl.style.fontSize = "13px";
         lbl.style.color = "#374151";
+        lbl.style.fontWeight = legendFw;
         lbl.textContent = items[li].label;
         item.appendChild(lbl);
 
@@ -332,7 +376,7 @@ looker.plugins.visualizations.add({
     var thCorner = document.createElement("th");
     thCorner.style.textAlign = "left";
     thCorner.style.fontSize = headerFz + "px";
-    thCorner.style.fontWeight = "700";
+    thCorner.style.fontWeight = colHeaderFw;
     thCorner.style.color = "#374151";
     thCorner.style.padding = "12px 16px";
     thCorner.style.background = "#F9FAFB";
@@ -345,7 +389,7 @@ looker.plugins.visualizations.add({
       var th = document.createElement("th");
       th.style.textAlign = "center";
       th.style.fontSize = headerFz + "px";
-      th.style.fontWeight = "700";
+      th.style.fontWeight = colHeaderFw;
       th.style.color = "#374151";
       th.style.padding = "12px 8px";
       th.style.background = "#F9FAFB";
@@ -366,7 +410,7 @@ looker.plugins.visualizations.add({
       var tdLabel = document.createElement("td");
       tdLabel.style.padding = "12px 16px";
       tdLabel.style.fontSize = headerFz + "px";
-      tdLabel.style.fontWeight = "600";
+      tdLabel.style.fontWeight = rowHeaderFw;
       tdLabel.style.color = "#374151";
       tdLabel.style.background = "#F9FAFB";
       tdLabel.style.borderRadius = cellRadius + "px";
@@ -385,7 +429,7 @@ looker.plugins.visualizations.add({
         td.style.textAlign = "center";
         td.style.verticalAlign = "middle";
         td.style.fontSize = cellFz + "px";
-        td.style.fontWeight = "700";
+        td.style.fontWeight = cellValueFw;
         td.style.color = "white";
         td.style.background = bgColor;
         td.style.borderRadius = cellRadius + "px";
