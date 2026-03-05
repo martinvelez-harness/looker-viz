@@ -68,7 +68,7 @@ looker.plugins.visualizations.add({
     text_gap: {
       type: "number",
       label: "Text Gap (px)",
-      default: 10,
+      default: 4,
       section: "Labels",
       order: 4
     },
@@ -273,7 +273,7 @@ looker.plugins.visualizations.add({
     var colorEmpty  = config.color_empty  || "#E5E7EB";
     var thickness   = Number(config.donut_thickness) || 20;
     var subtitle    = config.subtitle_text || "Covered";
-    var textGap     = config.text_gap != null ? Number(config.text_gap) : 10;
+    var textGap     = config.text_gap != null ? Number(config.text_gap) : 4;
     var fzValue     = Number(config.font_size_value) || 32;
     var fzSub       = Number(config.font_size_subtitle) || 13;
     var threshGood  = Number(config.threshold_good) || 80;
@@ -393,7 +393,7 @@ looker.plugins.visualizations.add({
     // Subtitle text
     var tSub = document.createElementNS(ns, "text");
     tSub.setAttribute("x", cx);
-    tSub.setAttribute("y", cy + fzValue * 1.2 + textGap);
+    tSub.setAttribute("y", cy + fzValue * 0.5 + textGap);
     tSub.setAttribute("text-anchor", "middle");
     tSub.setAttribute("dominant-baseline", "hanging");
     tSub.setAttribute("font-size", fzSub);
