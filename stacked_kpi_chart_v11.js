@@ -165,6 +165,11 @@ looker.plugins.visualizations.add({
           default: "", placeholder: pfix,
           section: "Series", order: oi * 10 + 1
         };
+        dynOpts["series_" + safe + "_in_chart"] = {
+          type: "string", label: pfix + " | Show in Chart",
+          display: "select", values: [{ "Yes": "true" }, { "No": "false" }],
+          default: "true", section: "Series", order: oi * 10 + 2
+        };
         dynOpts["summary_" + safe + "_show"] = {
           type: "string", label: pfix + " | Show in Summary",
           display: "select", values: [{ "Yes": "true" }, { "No": "false" }],
@@ -202,11 +207,15 @@ looker.plugins.visualizations.add({
     var showGrid     = config.show_grid !== "false";
     var showLegend   = config.show_legend !== "false";
     var barRatio     = Math.max(0.1, Math.min(Number(config.bar_width) || 0.6, 1));
-    var xRotation    = Number(config.x_label_rotation) || 45;
+    var xRotation    = config.x_label_rotation != null ? Number(config.x_label_rotation) : 0;
     var vfSetting    = config.value_format || "auto";
     var vfCustom     = (config.value_format_custom || "").trim();
     var summarySize  = Number(config.summary_font_size) || 24;
     var summaryLabelSize = Number(config.summary_label_size) || 12;
+    var summaryAlign = config.summary_align || "left";
+    var legendAlign  = config.legend_align || "center";
+    var summaryValueWeight = config.summary_value_weight === "normal" ? "400" : "700";
+    var summaryLabelWeight = config.summary_label_weight === "bold" ? "700" : "400";
 
     // Resolve format
     var resolvedFmt = null;
@@ -269,6 +278,8 @@ looker.plugins.visualizations.add({
       summaryRow.style.marginBottom = "12px";
       summaryRow.style.flexWrap = "wrap";
       summaryRow.style.flexShrink = "0";
+      var justifyMap = { "left": "flex-start", "center": "center", "right": "flex-end" };
+      summaryRow.style.justifyContent = justifyMap[summaryAlign] || "flex-start";
 
       if (showTotal) {
         summaryRow.appendChild(_createKpiEl(
@@ -276,7 +287,9 @@ looker.plugins.visualizations.add({
           _formatCompact(grandTotal, resolvedFmt),
           totalColor,
           summarySize,
-          summaryLabelSize
+          summaryLabelSize,
+          summaryValueWeight,
+          summaryLabelWeight
         ));
       }
 
@@ -290,7 +303,9 @@ looker.plugins.visualizations.add({
           _formatCompact(seriesTotals[seriesKeys[ski]], resolvedFmt),
           sColor,
           summarySize,
-          summaryLabelSize
+          summaryLabelSize,
+          summaryValueWeight,
+          summaryLabelWeight
         ));
       }
 
@@ -325,8 +340,8 @@ looker.plugins.visualizations.add({
     // --------------------------------------------------
     // Chart margins & dimensions
     // --------------------------------------------------
-    var marginLeft   = yAxisLabel ? 70 : 60;
-    var marginRight  = 16;
+    var marginLeft   = yAxisLabel ? 65 : 55;
+    var marginRight  = 8;
     var marginTop    = 8;
     var marginBottom = 24;
 
@@ -348,6 +363,8 @@ looker.plugins.visualizations.add({
     for (var ymi = 0; ymi < chartData.length; ymi++) {
       var sTotal = 0;
       for (var ysi = 0; ysi < chartData[ymi].stacks.length; ysi++) {
+        var ySafe = _safeKey(chartData[ymi].stacks[ysi].key);
+        if (config["series_" + ySafe + "_in_chart"] === "false") continue;
         sTotal += chartData[ymi].stacks[ysi].value;
       }
       if (sTotal > yMax) yMax = sTotal;
@@ -420,6 +437,8 @@ looker.plugins.visualizations.add({
 
       for (var bsi = 0; bsi < chartData[bi].stacks.length; bsi++) {
         var sv = chartData[bi].stacks[bsi];
+        var bSafe = _safeKey(sv.key);
+        if (config["series_" + bSafe + "_in_chart"] === "false") continue;
         if (sv.value <= 0) continue;
         var segH = (sv.value / yMax) * chartH;
         if (segH < 0.5) segH = 0.5;
@@ -435,6 +454,8 @@ looker.plugins.visualizations.add({
         // Round top corners only on topmost visible segment
         var isTop = true;
         for (var chk = bsi + 1; chk < chartData[bi].stacks.length; chk++) {
+          var chkSafe = _safeKey(chartData[bi].stacks[chk].key);
+          if (config["series_" + chkSafe + "_in_chart"] === "false") continue;
           if (chartData[bi].stacks[chk].value > 0) { isTop = false; break; }
         }
         if (isTop) barRect.setAttribute("rx", "3");
@@ -480,12 +501,31 @@ looker.plugins.visualizations.add({
     // -- Legend --
     if (showLegend) {
       var legendY = availH - 10;
-      var legendX = marginLeft;
 
+      // Calculate total legend width first for alignment
+      var legendItems = [];
+      var totalLegendW = 0;
       for (var li = 0; li < seriesKeys.length; li++) {
         var lk = _safeKey(seriesKeys[li]);
+        if (config["series_" + lk + "_in_chart"] === "false") continue;
         var lLabel = config["series_" + lk + "_label"] || seriesLabels[seriesKeys[li]] || seriesKeys[li];
-        var lColor = seriesColors[seriesKeys[li]];
+        var itemW = 16 + lLabel.length * 7 + 24;
+        legendItems.push({ label: lLabel, color: seriesColors[seriesKeys[li]], width: itemW });
+        totalLegendW += itemW;
+      }
+      totalLegendW -= 24; // remove trailing gap
+
+      var legendStartX = marginLeft;
+      if (legendAlign === "center") {
+        legendStartX = marginLeft + (chartW - totalLegendW) / 2;
+      } else if (legendAlign === "right") {
+        legendStartX = marginLeft + chartW - totalLegendW;
+      }
+      if (legendStartX < 0) legendStartX = 0;
+
+      var legendX = legendStartX;
+      for (var li2 = 0; li2 < legendItems.length; li2++) {
+        var lgItem = legendItems[li2];
 
         var lRect = document.createElementNS(ns, "rect");
         lRect.setAttribute("x", legendX);
@@ -493,7 +533,7 @@ looker.plugins.visualizations.add({
         lRect.setAttribute("width", 12);
         lRect.setAttribute("height", 12);
         lRect.setAttribute("rx", "2");
-        lRect.setAttribute("fill", lColor);
+        lRect.setAttribute("fill", lgItem.color);
         svg.appendChild(lRect);
 
         var lText = document.createElementNS(ns, "text");
@@ -503,10 +543,10 @@ looker.plugins.visualizations.add({
         lText.setAttribute("fill", "#6B7280");
         lText.setAttribute("font-family", fontFamily);
         lText.setAttribute("dominant-baseline", "central");
-        lText.textContent = lLabel;
+        lText.textContent = lgItem.label;
         svg.appendChild(lText);
 
-        legendX += 16 + lLabel.length * 7 + 24;
+        legendX += lgItem.width;
       }
     }
 
@@ -530,7 +570,7 @@ function _safeKey(key) {
   return String(key).replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
 }
 
-function _createKpiEl(label, value, color, valSize, lblSize) {
+function _createKpiEl(label, value, color, valSize, lblSize, valWeight, lblWeight) {
   var wrap = document.createElement("div");
   wrap.style.display = "flex";
   wrap.style.flexDirection = "column";
@@ -539,13 +579,13 @@ function _createKpiEl(label, value, color, valSize, lblSize) {
   var lEl = document.createElement("div");
   lEl.style.fontSize = (lblSize || 12) + "px";
   lEl.style.color = "#9CA3AF";
-  lEl.style.fontWeight = "500";
+  lEl.style.fontWeight = lblWeight || "500";
   lEl.textContent = label;
   wrap.appendChild(lEl);
 
   var vEl = document.createElement("div");
   vEl.style.fontSize = (valSize || 24) + "px";
-  vEl.style.fontWeight = "700";
+  vEl.style.fontWeight = valWeight || "700";
   vEl.style.color = color;
   vEl.style.lineHeight = "1.1";
   vEl.textContent = value;
@@ -647,6 +687,21 @@ function _buildBaseOptions() {
       type: "number", label: "Label Font Size (px)", default: 12,
       section: "Summary", order: 5
     },
+    summary_value_weight: {
+      type: "string", label: "Value Font Weight", display: "select",
+      values: [{ "Bold": "bold" }, { "Normal": "normal" }],
+      default: "bold", section: "Summary", order: 6
+    },
+    summary_label_weight: {
+      type: "string", label: "Label Font Weight", display: "select",
+      values: [{ "Normal": "normal" }, { "Bold": "bold" }],
+      default: "normal", section: "Summary", order: 7
+    },
+    summary_align: {
+      type: "string", label: "Summary Alignment", display: "select",
+      values: [{ "Left": "left" }, { "Center": "center" }, { "Right": "right" }],
+      default: "left", section: "Summary", order: 8
+    },
 
     // -- Chart --
     y_axis_label: {
@@ -663,12 +718,17 @@ function _buildBaseOptions() {
       values: [{ "Yes": "true" }, { "No": "false" }],
       default: "true", section: "Chart", order: 3
     },
+    legend_align: {
+      type: "string", label: "Legend Alignment", display: "select",
+      values: [{ "Left": "left" }, { "Center": "center" }, { "Right": "right" }],
+      default: "center", section: "Chart", order: 4
+    },
     bar_width: {
       type: "number", label: "Bar Width (0.1-1)", default: 0.6,
       section: "Chart", order: 4
     },
     x_label_rotation: {
-      type: "number", label: "X Label Rotation (deg)", default: 45,
+      type: "number", label: "X Label Rotation (deg)", default: 0,
       section: "Chart", order: 5
     },
 
