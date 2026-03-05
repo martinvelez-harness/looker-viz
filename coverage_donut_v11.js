@@ -1,5 +1,6 @@
 /**
- * Coverage Donut — Looker Custom Visualization
+ * Coverage Donut -- Looker Custom Visualization
+ * Developed by Martin Velez
  *
  * Renders a donut chart showing a coverage percentage with status badge
  * and optional period-over-period variation.
@@ -63,6 +64,13 @@ looker.plugins.visualizations.add({
       default: 13,
       section: "Labels",
       order: 3
+    },
+    text_gap: {
+      type: "number",
+      label: "Text Gap (px)",
+      default: 10,
+      section: "Labels",
+      order: 4
     },
     threshold_good: {
       type: "number",
@@ -265,6 +273,7 @@ looker.plugins.visualizations.add({
     var colorEmpty  = config.color_empty  || "#E5E7EB";
     var thickness   = Number(config.donut_thickness) || 20;
     var subtitle    = config.subtitle_text || "Covered";
+    var textGap     = config.text_gap != null ? Number(config.text_gap) : 10;
     var fzValue     = Number(config.font_size_value) || 32;
     var fzSub       = Number(config.font_size_subtitle) || 13;
     var threshGood  = Number(config.threshold_good) || 80;
@@ -384,7 +393,7 @@ looker.plugins.visualizations.add({
     // Subtitle text
     var tSub = document.createElementNS(ns, "text");
     tSub.setAttribute("x", cx);
-    tSub.setAttribute("y", cy + fzValue * 1.2 + 10);
+    tSub.setAttribute("y", cy + fzValue * 1.2 + textGap);
     tSub.setAttribute("text-anchor", "middle");
     tSub.setAttribute("dominant-baseline", "hanging");
     tSub.setAttribute("font-size", fzSub);
