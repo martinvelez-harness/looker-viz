@@ -410,18 +410,21 @@ looker.plugins.visualizations.add({
         labelRow.appendChild(cellLabel);
         cell.appendChild(labelRow);
 
-        var cellValue = document.createElement("div");
-        cellValue.style.fontSize = brkValueSize + "px";
-        cellValue.style.fontWeight = brkFontWeight;
-        cellValue.style.lineHeight = "1.2";
-        cellValue.textContent = formatVal(item.value, item.rendered);
-        if (brkUseTh) {
-          var c = getThresholdColor(item.value);
-          cellValue.style.color = c || brkValueColor;
-        } else {
-          cellValue.style.color = brkValueColor;
+        for (var gmi = 0; gmi < item.measures.length; gmi++) {
+          var gmv = item.measures[gmi];
+          var cellValue = document.createElement("div");
+          cellValue.style.fontSize = (gmi === 0 ? brkValueSize : brkLabelSize) + "px";
+          cellValue.style.fontWeight = gmi === 0 ? brkFontWeight : "400";
+          cellValue.style.lineHeight = "1.2";
+          cellValue.textContent = gmv.rendered || formatNumber(gmv.value, resolvedFormat);
+          if (brkUseTh && gmi === 0) {
+            var c = getThresholdColor(gmv.value);
+            cellValue.style.color = c || brkValueColor;
+          } else {
+            cellValue.style.color = gmi === 0 ? brkValueColor : "#6B7280";
+          }
+          cell.appendChild(cellValue);
         }
-        cell.appendChild(cellValue);
 
         addDrill(cell, item.links);
         grid.appendChild(cell);
@@ -430,7 +433,7 @@ looker.plugins.visualizations.add({
     }
 
     // =============================================
-    // LAYOUT: LIST (label left, value right)
+    // LAYOUT: LIST (dot + label + multi measures)
     // =============================================
     if (layout === "list") {
       var list = document.createElement("div");
@@ -443,40 +446,44 @@ looker.plugins.visualizations.add({
 
         var lRow = document.createElement("div");
         lRow.style.display = "flex";
-        lRow.style.justifyContent = "space-between";
         lRow.style.alignItems = "center";
         lRow.style.padding = "8px 0";
+        lRow.style.gap = "12px";
         if (li < breakdownItems.length - 1) {
           lRow.style.borderBottom = "1px solid #F3F4F6";
         }
 
-        // Label with optional dot
-        var lLabelWrap = document.createElement("div");
-        lLabelWrap.style.display = "flex";
-        lLabelWrap.style.alignItems = "center";
-        lLabelWrap.style.gap = "8px";
+        // Dot
         var ldot = createDot(li);
-        if (ldot) lLabelWrap.appendChild(ldot);
-        var rowLabel = document.createElement("span");
+        if (ldot) lRow.appendChild(ldot);
+
+        // Label (flex:1 to push values right)
+        var rowLabel = document.createElement("div");
+        rowLabel.style.flex = "1";
         rowLabel.style.fontSize = brkLabelSize + "px";
         rowLabel.style.color = brkLabelColor;
         rowLabel.style.fontWeight = "500";
         rowLabel.textContent = lItem.label;
-        lLabelWrap.appendChild(rowLabel);
-        lRow.appendChild(lLabelWrap);
+        lRow.appendChild(rowLabel);
 
-        var rowValue = document.createElement("div");
-        rowValue.style.fontSize = brkValueSize + "px";
-        rowValue.style.fontWeight = brkFontWeight;
-        rowValue.style.lineHeight = "1.2";
-        rowValue.textContent = formatVal(lItem.value, lItem.rendered);
-        if (brkUseTh) {
-          var lc = getThresholdColor(lItem.value);
-          rowValue.style.color = lc || brkValueColor;
-        } else {
-          rowValue.style.color = brkValueColor;
+        // All measure columns
+        for (var lmi = 0; lmi < lItem.measures.length; lmi++) {
+          var lmv = lItem.measures[lmi];
+          var lmEl = document.createElement("div");
+          lmEl.style.textAlign = "right";
+          lmEl.style.minWidth = "60px";
+          lmEl.style.fontSize = brkLabelSize + "px";
+          lmEl.style.fontWeight = brkFontWeight;
+          lmEl.textContent = lmv.rendered || formatNumber(lmv.value, resolvedFormat);
+          if (brkUseTh && lmi === 0) {
+            var lmc = getThresholdColor(lmv.value);
+            lmEl.style.color = lmc || brkValueColor;
+          } else {
+            lmEl.style.color = brkValueColor;
+          }
+          addDrill(lmEl, lmv.links);
+          lRow.appendChild(lmEl);
         }
-        lRow.appendChild(rowValue);
 
         addDrill(lRow, lItem.links);
         list.appendChild(lRow);
