@@ -117,7 +117,7 @@ looker.plugins.visualizations.add({
       };
       dynOpts["subtitle_measure_prefix"] = {
         type: "string",
-        label: "Subtitle Measure Label",
+        label: "Subtitle Label (with 2nd measure)",
         default: "Total value",
         placeholder: "e.g. Total value",
         section: "Total",
@@ -444,6 +444,10 @@ looker.plugins.visualizations.add({
       container.appendChild(brkTitleEl);
     }
 
+    // Column width for measure values alignment
+    var mColCount = measures.length;
+    var mColWidth = mColCount > 1 ? Math.floor(100 / (mColCount + 2)) + "%" : "auto";
+
     // =============================================
     // LAYOUT: GRID (original)
     // =============================================
@@ -532,12 +536,13 @@ looker.plugins.visualizations.add({
         rowLabel.textContent = lItem.label;
         lRow.appendChild(rowLabel);
 
-        // All measure columns
+        // All measure columns (fixed width for alignment)
         for (var lmi = 0; lmi < lItem.measures.length; lmi++) {
           var lmv = lItem.measures[lmi];
           var lmEl = document.createElement("div");
           lmEl.style.textAlign = "right";
-          lmEl.style.minWidth = "60px";
+          lmEl.style.width = mColWidth;
+          lmEl.style.flexShrink = "0";
           lmEl.style.fontSize = brkLabelSize + "px";
           lmEl.style.fontWeight = brkFontWeight;
           lmEl.textContent = formatMeasureVal(lmi, lmv.value, lmv.rendered);
@@ -591,12 +596,13 @@ looker.plugins.visualizations.add({
         tLabel.textContent = tItem.label;
         tRow.appendChild(tLabel);
 
-        // Measure columns
+        // Measure columns (fixed width for alignment)
         for (var mj = 0; mj < tItem.measures.length; mj++) {
           var mv = tItem.measures[mj];
           var mEl = document.createElement("div");
           mEl.style.textAlign = "right";
-          mEl.style.minWidth = "60px";
+          mEl.style.width = mColWidth;
+          mEl.style.flexShrink = "0";
           mEl.style.fontSize = brkLabelSize + "px";
           mEl.style.fontWeight = brkFontWeight;
 
@@ -659,7 +665,7 @@ function _buildBaseOptions() {
       default: "bold", section: "Total", order: 2
     },
     total_subtitle: {
-      type: "string", label: "Total Subtitle", default: "Total",
+      type: "string", label: "Subtitle (no 2nd measure)", default: "Total",
       section: "Total", order: 3
     },
     total_subtitle_color: {
