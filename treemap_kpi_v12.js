@@ -155,6 +155,8 @@ looker.plugins.visualizations.add({
     var legendPos        = config.legend_position || "above";
     var legendAlign      = config.legend_align || "left";
     var legendFw         = config.legend_font_weight === "bold" ? "700" : "400";
+    var legendFz         = Number(config.legend_font_size) || 13;
+    var legendTitleFz    = Number(config.legend_title_size) || 13;
     var cellLabelSize    = Number(config.cell_label_size) || 13;
     var cellValueSize    = Number(config.cell_value_size) || 12;
     var cellLabelWeight  = config.cell_label_weight === "normal" ? "400" : "700";
@@ -334,7 +336,7 @@ looker.plugins.visualizations.add({
 
       if (legendTitle) {
         var titleEl = document.createElement("span");
-        titleEl.style.fontSize = "13px";
+        titleEl.style.fontSize = legendTitleFz + "px";
         titleEl.style.color = "#6B7280";
         titleEl.style.fontWeight = "500";
         titleEl.textContent = legendTitle;
@@ -358,7 +360,7 @@ looker.plugins.visualizations.add({
         item.appendChild(swatch);
 
         var lbl2 = document.createElement("span");
-        lbl2.style.fontSize = "13px";
+        lbl2.style.fontSize = legendFz + "px";
         lbl2.style.color = "#374151";
         lbl2.style.fontWeight = legendFw;
         lbl2.textContent = config["group_" + gSafe2 + "_label"] || gn;
@@ -743,6 +745,14 @@ function _buildBaseOptions() {
       type: "string", label: "Legend Font Weight", display: "select",
       values: [{ "Normal": "normal" }, { "Bold": "bold" }],
       default: "normal", section: "Legend", order: 5
+    },
+    legend_font_size: {
+      type: "number", label: "Legend Items Font Size (px)", default: 13,
+      section: "Legend", order: 6
+    },
+    legend_title_size: {
+      type: "number", label: "Legend Title Font Size (px)", default: 13,
+      section: "Legend", order: 7
     },
 
     // -- Treemap --
