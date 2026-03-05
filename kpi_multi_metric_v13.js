@@ -1,5 +1,6 @@
 /**
  * KPI Multi-Metric Card -- Looker Custom Visualization
+ * Developed by Martin Velez
  *
  * Displays multiple measures as a KPI card. One measure is the primary
  * (big number), the rest are secondary. Per-series config for order,
