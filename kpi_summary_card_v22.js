@@ -22,26 +22,74 @@ looker.plugins.visualizations.add({
 
   options: {
     // -- Total --
+    card_title: {
+      type: "string",
+      label: "Card Title",
+      default: "",
+      placeholder: "e.g. Active Commitments",
+      section: "Total",
+      order: 0
+    },
+    card_title_color: {
+      type: "string",
+      label: "Title Color",
+      default: "#111827",
+      display: "color",
+      section: "Total",
+      order: 1
+    },
+    card_title_weight: {
+      type: "string",
+      label: "Title Font Weight",
+      display: "select",
+      values: [
+        { "Bold": "bold" },
+        { "Normal": "normal" }
+      ],
+      default: "bold",
+      section: "Total",
+      order: 2
+    },
     total_subtitle: {
       type: "string",
       label: "Total Subtitle",
       default: "Total",
       section: "Total",
-      order: 1
+      order: 3
+    },
+    total_subtitle_color: {
+      type: "string",
+      label: "Subtitle Color",
+      default: "#9CA3AF",
+      display: "color",
+      section: "Total",
+      order: 4
+    },
+    total_subtitle_weight: {
+      type: "string",
+      label: "Subtitle Font Weight",
+      display: "select",
+      values: [
+        { "Bold": "bold" },
+        { "Normal": "normal" }
+      ],
+      default: "normal",
+      section: "Total",
+      order: 5
     },
     total_font_size: {
       type: "number",
       label: "Value Font Size (px)",
       default: 48,
       section: "Total",
-      order: 2
+      order: 6
     },
     total_subtitle_size: {
       type: "number",
       label: "Subtitle Font Size (px)",
       default: 14,
       section: "Total",
-      order: 3
+      order: 7
     },
     total_color: {
       type: "string",
@@ -49,7 +97,19 @@ looker.plugins.visualizations.add({
       default: "#111827",
       display: "color",
       section: "Total",
-      order: 4
+      order: 8
+    },
+    total_font_weight: {
+      type: "string",
+      label: "Value Font Weight",
+      display: "select",
+      values: [
+        { "Bold": "bold" },
+        { "Normal": "normal" }
+      ],
+      default: "bold",
+      section: "Total",
+      order: 9
     },
     total_use_threshold: {
       type: "string",
@@ -61,7 +121,7 @@ looker.plugins.visualizations.add({
       ],
       default: "false",
       section: "Total",
-      order: 5
+      order: 6
     },
 
     // -- Breakdown --
@@ -119,6 +179,18 @@ looker.plugins.visualizations.add({
       display: "color",
       section: "Breakdown",
       order: 6
+    },
+    breakdown_font_weight: {
+      type: "string",
+      label: "Value Font Weight",
+      display: "select",
+      values: [
+        { "Bold": "bold" },
+        { "Normal": "normal" }
+      ],
+      default: "bold",
+      section: "Breakdown",
+      order: 7
     },
     breakdown_value_color: {
       type: "string",
@@ -206,13 +278,42 @@ looker.plugins.visualizations.add({
     },
 
     // -- Format --
-    value_format_override: {
+    value_format: {
       type: "string",
-      label: "Value Format Override",
-      default: "",
-      placeholder: "e.g. #,##0 or $#,##0.00",
+      label: "Value Format",
+      display: "select",
+      values: [
+        { "Auto (from query)": "auto" },
+        { "Decimal (0)": "decimal_0" },
+        { "Decimal (1)": "decimal_1" },
+        { "Decimal (2)": "decimal_2" },
+        { "USD": "usd" },
+        { "USD (0)": "usd_0" },
+        { "Percent (0)": "percent_0" },
+        { "Percent (1)": "percent_1" },
+        { "Percent (2)": "percent_2" },
+        { "Number": "number" },
+        { "Custom": "custom" }
+      ],
+      default: "auto",
       section: "Format",
       order: 1
+    },
+    value_format_custom: {
+      type: "string",
+      label: "Custom Format",
+      default: "",
+      placeholder: "e.g. $#,##0.00 or #,##0.0%",
+      section: "Format",
+      order: 2
+    },
+    divider_color: {
+      type: "string",
+      label: "Divider Color",
+      default: "#E5E7EB",
+      display: "color",
+      section: "Format",
+      order: 3
     },
     font_family: {
       type: "string",
@@ -286,10 +387,16 @@ looker.plugins.visualizations.add({
 
     // -- Config --
     var fontFamily       = config.font_family || "'Inter','Helvetica Neue',Arial,sans-serif";
+    var cardTitle        = (config.card_title || "").trim();
+    var cardTitleColor   = config.card_title_color || "#111827";
+    var cardTitleWeight  = config.card_title_weight === "normal" ? "400" : "700";
     var totalSubtitle    = config.total_subtitle || "Total";
+    var subtitleColor    = config.total_subtitle_color || "#9CA3AF";
+    var subtitleWeight   = config.total_subtitle_weight === "bold" ? "700" : "400";
     var totalFontSize    = Number(config.total_font_size) || 48;
     var subtitleSize     = Number(config.total_subtitle_size) || 14;
     var totalColor       = config.total_color || "#111827";
+    var totalFontWeight  = config.total_font_weight === "normal" ? "400" : "800";
     var breakdownTitle   = config.breakdown_title || "Breakdown by type";
     var layout           = config.breakdown_layout || "grid";
     var cols             = Number(config.breakdown_columns) || 3;
@@ -297,8 +404,10 @@ looker.plugins.visualizations.add({
     var brkValueSize     = Number(config.breakdown_value_size) || 28;
     var brkLabelColor    = config.breakdown_label_color || "#9CA3AF";
     var brkValueColor    = config.breakdown_value_color || "#111827";
+    var brkFontWeight    = config.breakdown_font_weight === "normal" ? "400" : "700";
     var showDot          = config.show_dot !== "false";
-    var fmtOverride      = (config.value_format_override || "").trim();
+    var vfSetting        = config.value_format || "auto";
+    var vfCustom         = (config.value_format_custom || "").trim();
 
     // Thresholds
     var thGood           = config.threshold_good != null ? Number(config.threshold_good) : null;
@@ -361,29 +470,37 @@ looker.plugins.visualizations.add({
       });
     }
 
-    // -- Detect format from Looker field metadata or rendered values --
-    var detectedFormat = "#,##0";
-    if (!fmtOverride) {
+    // -- Resolve format --
+    var resolvedFormat = null;
+    var useRendered = true;
+    if (vfSetting === "custom" && vfCustom) {
+      resolvedFormat = vfCustom;
+      useRendered = false;
+    } else if (vfSetting !== "auto") {
+      resolvedFormat = _resolveNamedFormat(vfSetting);
+      useRendered = false;
+    } else {
+      // Auto: detect from Looker field metadata or rendered values
       var lkFmt = measureField.value_format;
       if (lkFmt) {
-        detectedFormat = lkFmt;
+        resolvedFormat = lkFmt;
       } else if (breakdownItems.length > 0 && breakdownItems[0].rendered) {
         var sample = breakdownItems[0].rendered;
         if (sample.indexOf('%') !== -1) {
-          detectedFormat = "#,##0.0%";
+          resolvedFormat = "#,##0.0%";
         } else if (sample.indexOf('$') !== -1) {
           var decMatch = sample.match(/\.(\d+)/);
           var dec = decMatch ? decMatch[1].length : 0;
-          detectedFormat = "$#,##0" + (dec > 0 ? "." + "0".repeat(dec) : "");
+          resolvedFormat = "$#,##0" + (dec > 0 ? "." + "0".repeat(dec) : "");
         }
       }
     }
+    if (!resolvedFormat) resolvedFormat = "#,##0";
 
     // -- Format helper --
     function formatVal(num, rendered) {
-      if (fmtOverride) return formatNumber(num, fmtOverride);
-      if (rendered) return rendered;
-      return formatNumber(num, detectedFormat);
+      if (useRendered && rendered) return rendered;
+      return formatNumber(num, resolvedFormat);
     }
 
     // -- Build layout --
@@ -396,13 +513,24 @@ looker.plugins.visualizations.add({
     container.style.display = "flex";
     container.style.flexDirection = "column";
 
+    // -- Card title --
+    if (cardTitle) {
+      var titleEl = document.createElement("div");
+      titleEl.style.fontSize = "16px";
+      titleEl.style.fontWeight = cardTitleWeight;
+      titleEl.style.color = cardTitleColor;
+      titleEl.style.marginBottom = "8px";
+      titleEl.textContent = cardTitle;
+      container.appendChild(titleEl);
+    }
+
     // -- Total section --
     var totalSection = document.createElement("div");
     totalSection.style.marginBottom = "4px";
 
     var totalValueEl = document.createElement("div");
     totalValueEl.style.fontSize = totalFontSize + "px";
-    totalValueEl.style.fontWeight = "800";
+    totalValueEl.style.fontWeight = totalFontWeight;
     totalValueEl.style.lineHeight = "1.1";
     totalValueEl.textContent = formatVal(total, null);
 
@@ -417,7 +545,8 @@ looker.plugins.visualizations.add({
 
     var totalSubEl = document.createElement("div");
     totalSubEl.style.fontSize = subtitleSize + "px";
-    totalSubEl.style.color = "#9CA3AF";
+    totalSubEl.style.color = subtitleColor;
+    totalSubEl.style.fontWeight = subtitleWeight;
     totalSubEl.style.marginTop = "4px";
     totalSubEl.textContent = totalSubtitle;
     totalSection.appendChild(totalSubEl);
@@ -427,7 +556,7 @@ looker.plugins.visualizations.add({
     // -- Divider (always visible) --
     var divider = document.createElement("div");
     divider.style.height = "1px";
-    divider.style.background = "#E5E7EB";
+    divider.style.background = config.divider_color || "#E5E7EB";
     divider.style.margin = "16px 0";
     container.appendChild(divider);
 
@@ -467,7 +596,7 @@ looker.plugins.visualizations.add({
 
         var cellValue = document.createElement("div");
         cellValue.style.fontSize = brkValueSize + "px";
-        cellValue.style.fontWeight = "700";
+        cellValue.style.fontWeight = brkFontWeight;
         cellValue.style.lineHeight = "1.2";
         cellValue.textContent = formatVal(item.value, item.rendered);
         if (brkUseTh) {
@@ -514,7 +643,7 @@ looker.plugins.visualizations.add({
 
         var rowValue = document.createElement("div");
         rowValue.style.fontSize = brkValueSize + "px";
-        rowValue.style.fontWeight = "700";
+        rowValue.style.fontWeight = brkFontWeight;
         rowValue.style.lineHeight = "1.2";
         rowValue.textContent = formatVal(lItem.value, lItem.rendered);
         if (brkUseTh) {
@@ -579,7 +708,7 @@ looker.plugins.visualizations.add({
           mEl.style.textAlign = "right";
           mEl.style.minWidth = "60px";
           mEl.style.fontSize = brkLabelSize + "px";
-          mEl.style.fontWeight = "600";
+          mEl.style.fontWeight = brkFontWeight;
 
           var mRendered = mv.rendered || formatNumber(mv.value, detectedFormat);
           mEl.textContent = mRendered;
@@ -623,6 +752,21 @@ looker.plugins.visualizations.add({
 // --------------------------------------------------
 // Helpers
 // --------------------------------------------------
+function _resolveNamedFormat(name) {
+  var map = {
+    "decimal_0": "#,##0",
+    "decimal_1": "#,##0.0",
+    "decimal_2": "#,##0.00",
+    "usd": "$#,##0.00",
+    "usd_0": "$#,##0",
+    "percent_0": "#,##0%",
+    "percent_1": "#,##0.0%",
+    "percent_2": "#,##0.00%",
+    "number": "#,##0"
+  };
+  return map[name] || "#,##0";
+}
+
 function formatNumber(val, fmt) {
   if (!fmt) return String(val);
 
