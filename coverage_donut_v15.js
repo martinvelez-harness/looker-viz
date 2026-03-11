@@ -436,6 +436,10 @@ looker.plugins.visualizations.add({
       buttonsContainer.style.flexWrap = isHorizontal ? "nowrap" : "wrap";
       buttonsContainer.style.flexShrink = "0";
 
+      // Spacing: separate buttons from donut content
+      if (btnPosition === "bottom") buttonsContainer.style.marginTop    = "10px";
+      if (btnPosition === "top")    buttonsContainer.style.marginBottom = "10px";
+
       dimValues.forEach(function (val, idx) {
         var btnLabel = filterLabels[idx] || String(val);
 
@@ -493,6 +497,17 @@ looker.plugins.visualizations.add({
     if (buttonsContainer && (btnPosition === "top" || btnPosition === "left")) {
       wrapper.appendChild(buttonsContainer);
     }
+
+    // When horizontal (left/right), the donut + badge + varRow must stack vertically.
+    // Create a column container to hold them so they aren't laid out inline with buttons.
+    var donutArea = document.createElement("div");
+    donutArea.style.display = "flex";
+    donutArea.style.flexDirection = "column";
+    donutArea.style.alignItems = "center";
+    donutArea.style.justifyContent = "center";
+    donutArea.style.gap = "4px";
+    donutArea.style.flexShrink = "1";
+    donutArea.style.minWidth = "0";
 
     // ── SVG Donut ──
     var ns = "http://www.w3.org/2000/svg";
@@ -559,7 +574,7 @@ looker.plugins.visualizations.add({
     tSub.textContent = subtitle;
     svg.appendChild(tSub);
 
-    wrapper.appendChild(svg);
+    donutArea.appendChild(svg);
 
     // ── Status badge ──
     var badge = document.createElement("div");
@@ -574,7 +589,7 @@ looker.plugins.visualizations.add({
     badge.style.color = statusColor;
     badge.style.border = "1px solid " + statusColor + "50";
     badge.textContent = "Status: " + statusLabel;
-    wrapper.appendChild(badge);
+    donutArea.appendChild(badge);
 
     // ── Variation row ──
     if (showVariation && variationDelta !== null) {
@@ -602,8 +617,10 @@ looker.plugins.visualizations.add({
 
       varRow.appendChild(varNum);
       varRow.appendChild(varLbl);
-      wrapper.appendChild(varRow);
+      donutArea.appendChild(varRow);
     }
+
+    wrapper.appendChild(donutArea);
 
     // Inject buttons AFTER donut for bottom/right
     if (buttonsContainer && (btnPosition === "bottom" || btnPosition === "right")) {
