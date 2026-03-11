@@ -152,13 +152,27 @@ looker.plugins.visualizations.add({
       order: 2
     },
     // ── Filter Buttons (shown when a dimension is added to the query) ──
+    filter_buttons_position: {
+      type: "string",
+      label: "Buttons Position",
+      display: "select",
+      values: [
+        { "Top":    "top"    },
+        { "Bottom": "bottom" },
+        { "Left":   "left"   },
+        { "Right":  "right"  }
+      ],
+      default: "top",
+      section: "Filter Buttons",
+      order: 1
+    },
     filter_label_1: {
       type: "string",
       label: "Button 1 Label",
       default: "",
       placeholder: "Uses dimension value if empty",
       section: "Filter Buttons",
-      order: 1
+      order: 2
     },
     filter_label_2: {
       type: "string",
@@ -166,7 +180,7 @@ looker.plugins.visualizations.add({
       default: "",
       placeholder: "Uses dimension value if empty",
       section: "Filter Buttons",
-      order: 2
+      order: 3
     },
     filter_label_3: {
       type: "string",
@@ -174,7 +188,7 @@ looker.plugins.visualizations.add({
       default: "",
       placeholder: "Uses dimension value if empty",
       section: "Filter Buttons",
-      order: 3
+      order: 4
     }
   },
 
@@ -350,6 +364,9 @@ looker.plugins.visualizations.add({
       config.filter_label_3 || ""
     ];
 
+    var btnPosition = config.filter_buttons_position || "top"; // top | bottom | left | right
+    var isHorizontal = (btnPosition === "left" || btnPosition === "right");
+
     // Status
     var statusLabel, statusColor;
     if (pct >= threshGood) {
@@ -365,13 +382,24 @@ looker.plugins.visualizations.add({
     var elW = rect.width || element.clientWidth || window.innerWidth || 300;
     var elH = rect.height || element.clientHeight || window.innerHeight || 300;
 
-    // Reserve space for filter buttons row if present
-    var buttonsSpace = hasDims ? 34 : 0;
+    // Reserve space for buttons depending on position
     var badgeSpace = 30;
     if (showVariation && variationDelta !== null) badgeSpace += 22;
-    var availH = elH - badgeSpace - buttonsSpace;
 
-    var svgSize = Math.max(Math.min(elW * 0.75, availH * 0.80), 80);
+    var availW, availH;
+    if (isHorizontal) {
+      // left/right: buttons take ~80px from width
+      var btnColWidth = hasDims ? 84 : 0;
+      availW = elW - btnColWidth;
+      availH = elH - badgeSpace;
+    } else {
+      // top/bottom: buttons take ~34px from height
+      var btnRowHeight = hasDims ? 34 : 0;
+      availW = elW;
+      availH = elH - badgeSpace - btnRowHeight;
+    }
+
+    var svgSize = Math.max(Math.min(availW * 0.75, availH * 0.80), 80);
     var cx = svgSize / 2;
     var cy = svgSize / 2;
     var r = (svgSize / 2) - (thickness / 2) - 4;
@@ -383,10 +411,10 @@ looker.plugins.visualizations.add({
     // ── Build wrapper ──
     var wrapper = document.createElement("div");
     wrapper.style.display = "flex";
-    wrapper.style.flexDirection = "column";
+    wrapper.style.flexDirection = isHorizontal ? "row" : "column";
     wrapper.style.alignItems = "center";
     wrapper.style.justifyContent = "center";
-    wrapper.style.gap = "4px";
+    wrapper.style.gap = isHorizontal ? "8px" : "4px";
     wrapper.style.width = "100%";
     wrapper.style.height = "100%";
     wrapper.style.padding = "0";
@@ -396,21 +424,24 @@ looker.plugins.visualizations.add({
     wrapper.style.maxHeight = "100%";
     wrapper.style.boxSizing = "border-box";
 
-    // ── Filter buttons row (only when dimension is present) ──
+    // ── Build filter buttons container ──
+    var buttonsContainer = null;
     if (hasDims) {
-      var buttonsRow = document.createElement("div");
-      buttonsRow.style.display = "flex";
-      buttonsRow.style.gap = "6px";
-      buttonsRow.style.justifyContent = "center";
-      buttonsRow.style.flexWrap = "wrap";
-      buttonsRow.style.flexShrink = "0";
+      buttonsContainer = document.createElement("div");
+      buttonsContainer.style.display = "flex";
+      buttonsContainer.style.flexDirection = isHorizontal ? "column" : "row";
+      buttonsContainer.style.gap = "6px";
+      buttonsContainer.style.justifyContent = "center";
+      buttonsContainer.style.alignItems = "center";
+      buttonsContainer.style.flexWrap = isHorizontal ? "nowrap" : "wrap";
+      buttonsContainer.style.flexShrink = "0";
 
       dimValues.forEach(function (val, idx) {
         var btnLabel = filterLabels[idx] || String(val);
 
         var btn = document.createElement("button");
         btn.textContent = btnLabel;
-        btn.style.padding = "3px 14px";
+        btn.style.padding = isHorizontal ? "6px 10px" : "3px 14px";
         btn.style.borderRadius = "99px";
         btn.style.fontSize = "11px";
         btn.style.fontWeight = "600";
@@ -420,6 +451,10 @@ looker.plugins.visualizations.add({
         btn.style.transition = "all 0.15s ease";
         btn.style.fontFamily = "'Inter','Helvetica Neue',Arial,sans-serif";
         btn.style.letterSpacing = "0.03em";
+        if (isHorizontal) {
+          btn.style.width = "72px";
+          btn.style.textAlign = "center";
+        }
 
         if (idx === self._selectedDimIndex) {
           btn.style.background = colorFilled;
@@ -450,10 +485,13 @@ looker.plugins.visualizations.add({
           self.updateAsync(data, element, config, queryResponse, details, function () {});
         });
 
-        buttonsRow.appendChild(btn);
+        buttonsContainer.appendChild(btn);
       });
+    }
 
-      wrapper.appendChild(buttonsRow);
+    // Inject buttons BEFORE donut for top/left
+    if (buttonsContainer && (btnPosition === "top" || btnPosition === "left")) {
+      wrapper.appendChild(buttonsContainer);
     }
 
     // ── SVG Donut ──
@@ -565,6 +603,11 @@ looker.plugins.visualizations.add({
       varRow.appendChild(varNum);
       varRow.appendChild(varLbl);
       wrapper.appendChild(varRow);
+    }
+
+    // Inject buttons AFTER donut for bottom/right
+    if (buttonsContainer && (btnPosition === "bottom" || btnPosition === "right")) {
+      wrapper.appendChild(buttonsContainer);
     }
 
     // ── Drill support ──
