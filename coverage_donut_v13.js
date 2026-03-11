@@ -6,6 +6,7 @@
  * and optional period-over-period variation.
  *
  * Query: 1 measure (coverage rate). Optional 2nd measure (previous period for variation).
+ * Optional dimension: if present, renders up to 3 filter buttons to switch between values.
  *
  * manifest.lkml:
  *   visualization: {
@@ -149,13 +150,41 @@ looker.plugins.visualizations.add({
       default: "vs last period",
       section: "Variation",
       order: 2
+    },
+    // ── Filter Buttons (shown when a dimension is added to the query) ──
+    filter_label_1: {
+      type: "string",
+      label: "Button 1 Label",
+      default: "",
+      placeholder: "Uses dimension value if empty",
+      section: "Filter Buttons",
+      order: 1
+    },
+    filter_label_2: {
+      type: "string",
+      label: "Button 2 Label",
+      default: "",
+      placeholder: "Uses dimension value if empty",
+      section: "Filter Buttons",
+      order: 2
+    },
+    filter_label_3: {
+      type: "string",
+      label: "Button 3 Label",
+      default: "",
+      placeholder: "Uses dimension value if empty",
+      section: "Filter Buttons",
+      order: 3
     }
   },
 
   // ──────────────────────────────────────────────
-  // CREATE
+  // CREATE — initialize persistent state
   // ──────────────────────────────────────────────
   create: function (element, config) {
+    // Persist selected filter button index across re-renders
+    this._selectedDimIndex = 0;
+
     element.innerHTML = "";
     element.style.fontFamily = "'Inter','Helvetica Neue',Arial,sans-serif";
     element.style.display = "flex";
@@ -174,11 +203,14 @@ looker.plugins.visualizations.add({
   // UPDATE
   // ──────────────────────────────────────────────
   updateAsync: function (data, element, config, queryResponse, details, doneRendering) {
+    var self = this;
+
     // Clear previous render
     element.innerHTML = "";
     element.style.overflow = "hidden";
     element.style.padding = "0";
     element.style.margin = "0";
+
     // Walk up the DOM and force overflow hidden on all ancestors within the iframe
     var parent = element.parentElement;
     while (parent && parent !== document.body) {
@@ -202,21 +234,17 @@ looker.plugins.visualizations.add({
       return;
     }
 
-    // ── Gather all measure-like fields (measures + table_calculations) ──
-    // Use measure_like which is the canonical Looker API array.
-    // Fallback to manual concat if measure_like is not available.
+    // ── Gather all measure-like fields ──
     var allMeasures = [];
     if (queryResponse.fields.measure_like && queryResponse.fields.measure_like.length > 0) {
       allMeasures = queryResponse.fields.measure_like;
     } else {
-      var measures = queryResponse.fields.measures || queryResponse.fields.measure_like || [];
+      var measures = queryResponse.fields.measures || [];
       var tablecalcs = queryResponse.fields.table_calculations || [];
       allMeasures = measures.concat(tablecalcs);
     }
 
-    // If still empty, also check dimension_like as some table calcs end up there
     if (allMeasures.length === 0) {
-      // Last resort: grab any field that has data in the first row
       var allFields = [].concat(
         queryResponse.fields.measures || [],
         queryResponse.fields.dimensions || [],
@@ -233,11 +261,41 @@ looker.plugins.visualizations.add({
 
     this.clearErrors();
 
-    // ── Extract values ──
-    var row = data[0];
-    var primaryField = allMeasures[0];
+    // ── Dimension filter logic ──
+    // If a dimension is present, extract up to 3 unique values and show filter buttons.
+    var dims = queryResponse.fields.dimensions || [];
+    var hasDims = dims.length > 0 && data.length > 1;
+    var activeDim = hasDims ? dims[0] : null;
 
+    // Build list of up to 3 unique rows keyed by first dimension value
+    var filteredRows = [];
+    var dimValues = [];
+    if (hasDims) {
+      var seen = {};
+      for (var i = 0; i < data.length && filteredRows.length < 3; i++) {
+        var cell = data[i][activeDim.name];
+        var key = cell ? String(cell.value) : "";
+        if (!seen[key]) {
+          seen[key] = true;
+          filteredRows.push(data[i]);
+          dimValues.push(cell ? cell.value : "");
+        }
+      }
+    } else {
+      filteredRows = [data[0]];
+    }
+
+    // Clamp selected index in case data changes
+    if (this._selectedDimIndex >= filteredRows.length) {
+      this._selectedDimIndex = 0;
+    }
+
+    var row = filteredRows[this._selectedDimIndex];
+
+    // ── Extract measure values from selected row ──
+    var primaryField = allMeasures[0];
     var primaryCell = row[primaryField.name];
+
     if (!primaryCell) {
       element.innerHTML = '<p style="color:#9CA3AF;text-align:center;padding:20px;font-size:13px;">No data for field: ' + primaryField.name + '</p>';
       doneRendering();
@@ -247,7 +305,7 @@ looker.plugins.visualizations.add({
     var primaryRaw = primaryCell.value;
     var primaryValue = parseFloat(String(primaryRaw).replace("%", "")) || 0;
 
-    // Auto-detect if value is 0-1 (ratio) or 0-100 (percentage)
+    // Auto-detect ratio (0-1) vs percentage (0-100)
     var pct = (primaryValue > 0 && primaryValue <= 1) ? primaryValue * 100 : primaryValue;
     pct = Math.min(Math.max(pct, 0), 100);
 
@@ -286,31 +344,33 @@ looker.plugins.visualizations.add({
     var colorPoor   = config.color_poor || "#EF4444";
     var varLabel    = config.variation_label || "vs last period";
 
+    var filterLabels = [
+      config.filter_label_1 || "",
+      config.filter_label_2 || "",
+      config.filter_label_3 || ""
+    ];
+
     // Status
     var statusLabel, statusColor;
     if (pct >= threshGood) {
-      statusLabel = labelGood;
-      statusColor = colorGood;
+      statusLabel = labelGood; statusColor = colorGood;
     } else if (pct >= threshFair) {
-      statusLabel = labelFair;
-      statusColor = colorFair;
+      statusLabel = labelFair; statusColor = colorFair;
     } else {
-      statusLabel = labelPoor;
-      statusColor = colorPoor;
+      statusLabel = labelPoor; statusColor = colorPoor;
     }
 
     // ── Sizing ──
-    // Try multiple approaches to get the real available space
     var rect = element.getBoundingClientRect();
     var elW = rect.width || element.clientWidth || window.innerWidth || 300;
     var elH = rect.height || element.clientHeight || window.innerHeight || 300;
 
-    // Reserve space for badge (~28px) and variation row (~20px)
+    // Reserve space for filter buttons row if present
+    var buttonsSpace = hasDims ? 34 : 0;
     var badgeSpace = 30;
     if (showVariation && variationDelta !== null) badgeSpace += 22;
-    var availH = elH - badgeSpace;
+    var availH = elH - badgeSpace - buttonsSpace;
 
-    // Donut should fill as much as possible but NEVER exceed container
     var svgSize = Math.max(Math.min(elW * 0.75, availH * 0.80), 80);
     var cx = svgSize / 2;
     var cy = svgSize / 2;
@@ -320,7 +380,7 @@ looker.plugins.visualizations.add({
     var filled = (pct / 100) * circum;
     var gap = circum - filled;
 
-    // ── Build DOM ──
+    // ── Build wrapper ──
     var wrapper = document.createElement("div");
     wrapper.style.display = "flex";
     wrapper.style.flexDirection = "column";
@@ -336,6 +396,67 @@ looker.plugins.visualizations.add({
     wrapper.style.maxHeight = "100%";
     wrapper.style.boxSizing = "border-box";
 
+    // ── Filter buttons row (only when dimension is present) ──
+    if (hasDims) {
+      var buttonsRow = document.createElement("div");
+      buttonsRow.style.display = "flex";
+      buttonsRow.style.gap = "6px";
+      buttonsRow.style.justifyContent = "center";
+      buttonsRow.style.flexWrap = "wrap";
+      buttonsRow.style.flexShrink = "0";
+
+      dimValues.forEach(function (val, idx) {
+        var btnLabel = filterLabels[idx] || String(val);
+
+        var btn = document.createElement("button");
+        btn.textContent = btnLabel;
+        btn.style.padding = "3px 14px";
+        btn.style.borderRadius = "99px";
+        btn.style.fontSize = "11px";
+        btn.style.fontWeight = "600";
+        btn.style.cursor = "pointer";
+        btn.style.border = "1.5px solid";
+        btn.style.outline = "none";
+        btn.style.transition = "all 0.15s ease";
+        btn.style.fontFamily = "'Inter','Helvetica Neue',Arial,sans-serif";
+        btn.style.letterSpacing = "0.03em";
+
+        if (idx === self._selectedDimIndex) {
+          btn.style.background = colorFilled;
+          btn.style.color = "white";
+          btn.style.borderColor = colorFilled;
+        } else {
+          btn.style.background = "white";
+          btn.style.color = "#6B7280";
+          btn.style.borderColor = "#D1D5DB";
+        }
+
+        btn.addEventListener("mouseenter", function () {
+          if (idx !== self._selectedDimIndex) {
+            btn.style.borderColor = colorFilled;
+            btn.style.color = colorFilled;
+          }
+        });
+        btn.addEventListener("mouseleave", function () {
+          if (idx !== self._selectedDimIndex) {
+            btn.style.borderColor = "#D1D5DB";
+            btn.style.color = "#6B7280";
+          }
+        });
+
+        btn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          self._selectedDimIndex = idx;
+          self.updateAsync(data, element, config, queryResponse, details, function () {});
+        });
+
+        buttonsRow.appendChild(btn);
+      });
+
+      wrapper.appendChild(buttonsRow);
+    }
+
+    // ── SVG Donut ──
     var ns = "http://www.w3.org/2000/svg";
 
     var svg = document.createElementNS(ns, "svg");
@@ -368,9 +489,7 @@ looker.plugins.visualizations.add({
       arc.setAttribute("stroke-width", thickness);
       arc.setAttribute("stroke-linecap", "round");
       arc.setAttribute("stroke-dasharray", filled + " " + gap);
-      // Offset to start from top (12 o'clock position)
       arc.setAttribute("stroke-dashoffset", String(circum * 0.25));
-      // Smooth animation on load
       arc.setAttribute("style",
         "transition: stroke-dasharray 0.6s ease-out; transform-origin: center; transform: rotate(0deg);"
       );
