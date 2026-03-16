@@ -528,6 +528,8 @@ looker.plugins.visualizations.add({
         visibleFields.forEach(function (field) {
           var td = document.createElement("td");
           var align = _effectiveAlign(field);
+          var wrapText = config["col_" + _safeKey(field.name) + "_wrap"] === "true";
+
           td.style.cssText = [
             "padding:9px 12px",
             "border-bottom:1px solid " + borderColor,
@@ -535,9 +537,12 @@ looker.plugins.visualizations.add({
             "color:#111827",
             "vertical-align:middle",
             "text-align:" + align,
-            "white-space:nowrap",
-            "overflow:hidden",
-            "text-overflow:ellipsis"
+            // max-width:0 is the key trick for table-layout:fixed — it tells the browser
+            // the cell has no intrinsic min-content width so overflow:hidden can actually
+            // clip the content below its natural size.
+            "max-width:0",
+            wrapText ? "white-space:normal;word-break:break-word"
+                     : "white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
           ].join(";");
 
           var cell       = row[field.name];
@@ -825,6 +830,11 @@ function _buildOptions(allFields, dimensions) {
       values: [{ "Left": "left" }, { "Center": "center" }, { "Right": "right" }],
       default: isDim ? "left" : "right",
       section: "Columns", order: base + 3
+    };
+    opts["col_" + safe + "_wrap"] = {
+      type: "string", label: label + " | Wrap Text", display: "select",
+      values: [{ "No (truncate)": "false" }, { "Yes (multi-line)": "true" }],
+      default: "false", section: "Columns", order: base + 4
     };
   });
 
