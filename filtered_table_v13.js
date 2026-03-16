@@ -356,25 +356,35 @@ looker.plugins.visualizations.add({
       // ---- TABLE ----
       var table = document.createElement("table");
 
-      // Start with auto layout so the browser can compute natural column widths.
-      // After appending to the DOM we do a two-pass width application:
-      //   Pass 1 — measure every th's rendered width (getBoundingClientRect)
-      //   Pass 2 — apply drag / config widths on top of those natural widths,
-      //            then switch to fixed layout so widths are enforced exactly.
+      // Use fixed layout when ANY field has an explicit width (drag or config).
+      // Fixed layout is required to enforce exact widths (including shrinking).
+      // Without it, table-layout:auto ignores col widths and respects min-content only.
+      var hasExplicit = visibleFields.some(function (f) {
+        return self._colWidths[f.name] > 0 ||
+               Number(config["col_" + _safeKey(f.name) + "_width"]) > 0;
+      });
+
       table.style.cssText = [
-        "width:100%",
+        "width:"      + (hasExplicit ? "max-content" : "100%"),
         "min-width:100%",
         "border-collapse:collapse",
-        "font-size:" + fontSize + "px",
+        "font-size:"  + fontSize + "px",
         "font-family:" + fontFamily,
-        "table-layout:auto"
+        "table-layout:" + (hasExplicit ? "fixed" : "auto")
       ].join(";");
 
-      // Colgroup — IDs only; widths applied after DOM append in the two-pass block
+      // Colgroup — set widths when in fixed-layout mode.
+      // Priority: drag width > config width > 150px fallback (for unlocked columns).
       var cg = document.createElement("colgroup");
       visibleFields.forEach(function (field) {
         var col = document.createElement("col");
         col.id = "_ft_col_" + _safeKey(field.name);
+        if (hasExplicit) {
+          var dragW = self._colWidths[field.name] > 0 ? self._colWidths[field.name] : 0;
+          var cfgW  = Number(config["col_" + _safeKey(field.name) + "_width"]) || 0;
+          var w     = dragW > 0 ? dragW : (cfgW > 0 ? cfgW : 150);
+          col.style.width = w + "px";
+        }
         cg.appendChild(col);
       });
       table.appendChild(cg);
@@ -552,31 +562,6 @@ looker.plugins.visualizations.add({
 
       table.appendChild(tbody);
       tableWrap.appendChild(table);
-
-      // ---- Two-pass column width application ----
-      // Pass 1: read every column's natural rendered width.
-      // Pass 2: override with drag / config explicit widths, then lock to fixed layout.
-      // This ensures: (a) auto-width columns keep their natural fit,
-      //               (b) config/drag widths are applied exactly (can both grow AND shrink).
-      var allThs  = table.querySelectorAll("thead > tr > th");
-      var allCols = table.querySelectorAll("colgroup > col");
-      var hasExplicit = false;
-      for (var tpci = 0; tpci < visibleFields.length; tpci++) {
-        var tpf      = visibleFields[tpci];
-        var naturalW = allThs[tpci] ? allThs[tpci].getBoundingClientRect().width : 150;
-        var dragW    = self._colWidths[tpf.name] > 0 ? self._colWidths[tpf.name] : 0;
-        var cfgW     = Number(config["col_" + _safeKey(tpf.name) + "_width"]) || 0;
-        // Drag width takes priority; config width next; natural auto width as default.
-        var finalW   = dragW > 0 ? dragW : (cfgW > 0 ? cfgW : naturalW);
-        if (dragW > 0 || cfgW > 0) hasExplicit = true;
-        if (allCols[tpci]) allCols[tpci].style.width = finalW + "px";
-      }
-      // Only switch to fixed layout when at least one column has an explicit width.
-      // Fixed layout enforces the <col> widths exactly (allows shrinking too).
-      if (hasExplicit) {
-        table.style.tableLayout = "fixed";
-        table.style.width       = "max-content";
-      }
     }
 
     // Initial render
