@@ -36,26 +36,40 @@ looker.plugins.visualizations.add({
   options: {
 
     // ── Line ──────────────────────────────────────────────────────────────
+    series_palette: {
+      type: "array", label: "Series Color Palette",
+      display: "colors",
+      section: "Line", order: 1
+    },
     line_color: {
-      type: "string", label: "Line Color", default: "#6366F1",
-      display: "color", section: "Line", order: 1
+      type: "string", label: "Fallback / Single Series Color", default: "#6366F1",
+      display: "color", section: "Line", order: 2
     },
     line_type: {
       type: "string", label: "Line Type", display: "select",
       values: [{ "Linear": "linear" }, { "Smooth (Monotone)": "monotone" }],
-      default: "linear", section: "Line", order: 2
+      default: "linear", section: "Line", order: 3
     },
     line_width: {
       type: "number", label: "Line Width (px)", default: 2,
-      section: "Line", order: 3
+      section: "Line", order: 4
+    },
+    series_point_style: {
+      type: "string", label: "Series Point Style", display: "select",
+      values: [{ "Filled": "filled" }, { "Outline": "outline" }, { "Hidden": "none" }],
+      default: "filled", section: "Line", order: 5
+    },
+    series_point_size: {
+      type: "number", label: "Series Point Size (px)", default: 3,
+      section: "Line", order: 6
     },
     fill_area: {
       type: "boolean", label: "Fill Area Under Line", default: false,
-      section: "Line", order: 4
+      section: "Line", order: 7
     },
     fill_opacity: {
       type: "number", label: "Fill Opacity (0–1)", default: 0.12,
-      section: "Line", order: 5
+      section: "Line", order: 8
     },
 
     // ── Event A (Dimension 1) ─────────────────────────────────────────────
@@ -227,9 +241,12 @@ looker.plugins.visualizations.add({
 
     // ── Config ─────────────────────────────────────────────────────────────
     var cfg = {
+      seriesPalette: Array.isArray(config.series_palette) && config.series_palette.length ? config.series_palette : null,
       lineColor:    config.line_color    || "#6366F1",
       lineType:     config.line_type     || "linear",
       lineWidth:    +(config.line_width   || 2),
+      pointStyle:   config.series_point_style || "filled",
+      pointSize:    +(config.series_point_size || 3),
       fillArea:     !!config.fill_area,
       fillOpacity:  +(config.fill_opacity || 0.12),
 
@@ -261,26 +278,36 @@ looker.plugins.visualizations.add({
       yAsPercent:  config.y_as_percent !== false
     };
 
-    // ── Parse rows ──────────────────────────────────────────────────────────
+    // ── Helpers ─────────────────────────────────────────────────────────────
+    function hexToRgba(hex, alpha) {
+      var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+      return "rgba("+r+","+g+","+b+","+alpha+")";
+    }
+
+    // Color palette: use Looker palette if configured, otherwise defaults
+    var PALETTE = cfg.seriesPalette && cfg.seriesPalette.length
+      ? cfg.seriesPalette
+      : [cfg.lineColor, "#F59E0B", "#10B981", "#3B82F6", "#EC4899", "#8B5CF6", "#06B6D4", "#84CC16", "#EF4444"];
+
+    function parseValue(v) {
+      if (v === null || v === undefined) return null;
+      if (typeof v === "number") return cfg.yAsPercent && v <= 1 ? v * 100 : v;
+      var n = parseFloat(String(v).replace("%", ""));
+      return isNaN(n) ? null : n;
+    }
+
+    // ── Detect pivot mode ───────────────────────────────────────────────────
+    var pivots    = queryResponse.pivots || [];
+    var isPivoted = pivots.length > 0;
+
+    // ── Parse labels + event marker indices (same in both modes) ───────────
     var labels     = [];
-    var yValues    = [];
     var eventAIdxs = [];
     var eventBIdxs = [];
 
     data.forEach(function (row, i) {
       var c0 = row[dimKey0];
-      labels.push(c0 ? (c0.rendered != null ? c0.rendered : c0.value) : "");
-
-      var mc = row[measKey];
-      var v  = mc ? mc.value : null;
-      if (v === null || v === undefined) {
-        yValues.push(null);
-      } else if (typeof v === "number") {
-        yValues.push(cfg.yAsPercent && v <= 1 ? v * 100 : v);
-      } else {
-        var n = parseFloat(String(v).replace("%", ""));
-        yValues.push(isNaN(n) ? null : n);
-      }
+      labels.push(c0 ? (c0.rendered != null ? c0.rendered : String(c0.value)) : "");
 
       if (dimKey1) {
         var c1 = row[dimKey1];
@@ -292,13 +319,40 @@ looker.plugins.visualizations.add({
       }
     });
 
-    // ── Helpers ─────────────────────────────────────────────────────────────
-    function hexToRgba(hex, alpha) {
-      var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
-      return "rgba("+r+","+g+","+b+","+alpha+")";
+    // ── Build series datasets ───────────────────────────────────────────────
+    // seriesMap: pivotKey → values array  (flat mode uses key = "")
+    var seriesMap    = {};   // { key: [values...] }
+    var seriesLabels = {};   // { key: "Display Label" }
+
+    if (isPivoted) {
+      // One series per pivot value
+      pivots.forEach(function (pv) {
+        var key = pv.key;
+        seriesLabels[key] = pv.data ? (pv.data[Object.keys(pv.data)[0]] || key) : key;
+        seriesMap[key] = data.map(function (row) {
+          var cell = row[measKey];
+          if (!cell) return null;
+          // Pivoted cell is an object keyed by pivot key
+          var pivotCell = cell[key];
+          return pivotCell ? parseValue(pivotCell.value) : null;
+        });
+      });
+    } else {
+      // Flat: single series
+      var flatLabel = meas[0].label_short || meas[0].label || "Value";
+      seriesLabels[""] = flatLabel;
+      seriesMap[""] = data.map(function (row) {
+        var mc = row[measKey];
+        return mc ? parseValue(mc.value) : null;
+      });
     }
+
+    // yValues for the first series (used for event marker Y positioning)
+    var firstKey    = Object.keys(seriesMap)[0];
+    var yValuesFirst = seriesMap[firstKey] || [];
+
     function evtData(idxs) {
-      return idxs.map(function(i){ return { x: i, y: yValues[i] }; });
+      return idxs.map(function(i){ return { x: i, y: yValuesFirst[i] != null ? yValuesFirst[i] : null }; });
     }
 
     // ── Datasets ────────────────────────────────────────────────────────────
@@ -306,23 +360,37 @@ looker.plugins.visualizations.add({
 
     // Series (group 1)
     var seriesDatasets = [];
-    seriesDatasets.push({
-      label:               meas[0].label_short || meas[0].label || "Value",
-      data:                yValues,
-      borderColor:         cfg.lineColor,
-      backgroundColor:     cfg.fillArea ? hexToRgba(cfg.lineColor, cfg.fillOpacity) : "transparent",
-      fill:                cfg.fillArea,
-      tension:             cfg.lineType === "monotone" ? 0.4 : 0,
-      borderWidth:         cfg.lineWidth,
-      pointRadius:         3,
-      pointHoverRadius:    5,
-      pointBackgroundColor: cfg.lineColor,
-      pointBorderColor:    "white",
-      pointBorderWidth:    1.5,
-      type:                "line",
-      order:               3,
-      yAxisID:             "y",
-      _group:              "series"
+    // Point style helpers for series lines
+    var ptRadius      = cfg.pointStyle === "none" ? 0 : cfg.pointSize;
+    var ptHoverRadius = cfg.pointStyle === "none" ? 0 : cfg.pointSize + 2;
+
+    Object.keys(seriesMap).forEach(function (key, si) {
+      var color  = PALETTE[si % PALETTE.length];
+      var values = seriesMap[key];
+      var label  = seriesLabels[key] || key || "Value";
+
+      var ptBg     = cfg.pointStyle === "outline"  ? "transparent" : color;
+      var ptBorder = cfg.pointStyle === "outline"  ? color         : "white";
+      var ptBW     = cfg.pointStyle === "outline"  ? 2             : 1.5;
+
+      seriesDatasets.push({
+        label:                label,
+        data:                 values,
+        borderColor:          color,
+        backgroundColor:      cfg.fillArea ? hexToRgba(color, cfg.fillOpacity) : "transparent",
+        fill:                 cfg.fillArea,
+        tension:              cfg.lineType === "monotone" ? 0.4 : 0,
+        borderWidth:          cfg.lineWidth,
+        pointRadius:          ptRadius,
+        pointHoverRadius:     ptHoverRadius,
+        pointBackgroundColor: ptBg,
+        pointBorderColor:     ptBorder,
+        pointBorderWidth:     ptBW,
+        type:                 "line",
+        order:                3,
+        yAxisID:              "y",
+        _group:               "series"
+      });
     });
 
     // Events / Target (group 2)
