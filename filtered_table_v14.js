@@ -373,17 +373,23 @@ looker.plugins.visualizations.add({
         "table-layout:" + (hasExplicit ? "fixed" : "auto")
       ].join(";");
 
-      // Colgroup — set widths when in fixed-layout mode.
-      // Priority: drag width > config width > 150px fallback (for unlocked columns).
+      // Pre-compute effective column width for each visible field.
+      // Priority: drag width > config width > 0 (auto).
+      // When hasExplicit=true, 0 falls back to 150px so fixed layout has all widths set.
+      var colWidthMap = {};
+      visibleFields.forEach(function (f) {
+        var dw = self._colWidths[f.name] > 0 ? self._colWidths[f.name] : 0;
+        var cw = Number(config["col_" + _safeKey(f.name) + "_width"]) || 0;
+        colWidthMap[f.name] = dw > 0 ? dw : cw; // 0 means "auto"
+      });
+
+      // Colgroup — IDs always set; widths only when in fixed-layout mode.
       var cg = document.createElement("colgroup");
       visibleFields.forEach(function (field) {
         var col = document.createElement("col");
         col.id = "_ft_col_" + _safeKey(field.name);
         if (hasExplicit) {
-          var dragW = self._colWidths[field.name] > 0 ? self._colWidths[field.name] : 0;
-          var cfgW  = Number(config["col_" + _safeKey(field.name) + "_width"]) || 0;
-          var w     = dragW > 0 ? dragW : (cfgW > 0 ? cfgW : 150);
-          col.style.width = w + "px";
+          col.style.width = (colWidthMap[field.name] > 0 ? colWidthMap[field.name] : 150) + "px";
         }
         cg.appendChild(col);
       });
@@ -399,8 +405,12 @@ looker.plugins.visualizations.add({
         var isActive = self._sortField === field.name;
         var align = _effectiveAlign(field);
 
+        // Explicit width applied directly on <th> — sticky headers do NOT always
+        // reflow when only <col> changes, so we set width+max-width on the element itself.
+        var thW = hasExplicit ? (colWidthMap[field.name] > 0 ? colWidthMap[field.name] : 150) : 0;
+
         th.style.cssText = [
-          "padding:9px 24px 9px 12px",  // right padding for resize handle
+          "padding:9px 24px 9px 12px",
           "font-size:12px",
           "font-weight:600",
           "color:" + (isActive ? "#111827" : headerTextColor),
@@ -412,16 +422,17 @@ looker.plugins.visualizations.add({
           "user-select:none",
           "text-align:" + align,
           "position:relative",
-          "overflow:hidden"
-        ].join(";");
+          "overflow:hidden",
+          thW > 0 ? "width:" + thW + "px" : "",
+          thW > 0 ? "max-width:" + thW + "px" : ""
+        ].filter(Boolean).join(";");
 
         // Label + sort icon
         var lbl = _effectiveLabel(field);
         var icon = isActive ? (self._sortDir === "asc" ? " ↑" : " ↓") : " ↑↓";
-        var lblEl = _span(lbl + icon, "");
-        th.appendChild(lblEl);
+        th.appendChild(_span(lbl + icon, ""));
 
-        // Sort click on th (but NOT on resize handle)
+        // Sort click (not on resize handle)
         th.addEventListener("click", function () {
           if (self._sortField === field.name) {
             self._sortDir = self._sortDir === "asc" ? "desc" : "asc";
@@ -435,42 +446,37 @@ looker.plugins.visualizations.add({
         // ---- Drag-resize handle ----
         var handle = document.createElement("div");
         handle.style.cssText = [
-          "position:absolute",
-          "right:0",
-          "top:0",
-          "width:6px",
-          "height:100%",
-          "cursor:col-resize",
-          "background:transparent",
-          "z-index:4"
+          "position:absolute", "right:0", "top:0",
+          "width:6px", "height:100%",
+          "cursor:col-resize", "background:transparent", "z-index:4"
         ].join(";");
 
-        handle.addEventListener("mousedown", (function (f) {
+        handle.addEventListener("mousedown", (function (f, thEl) {
           return function (e) {
             e.preventDefault();
             e.stopPropagation();
 
-            // ── Step 1: snapshot every column's CURRENT rendered width ──
-            // Must happen BEFORE switching to fixed layout.
-            // With table-layout:auto, col[width] is just a hint — the browser
-            // enforces min-content and ignores shrink requests.
-            // Freezing all widths first lets us shrink any column freely.
-            var allThs  = table.querySelectorAll("thead > tr > th");
-            var allCols = table.querySelectorAll("colgroup > col");
-            for (var ci = 0; ci < allThs.length; ci++) {
-              var cw = allThs[ci].getBoundingClientRect().width;
-              if (allCols[ci]) allCols[ci].style.width = cw + "px";
+            // ── Step 1: freeze ALL columns at their current rendered width ──
+            // Snapshot BEFORE switching to fixed so shrinking works correctly.
+            var allThEls = table.querySelectorAll("thead > tr > th");
+            var allColEls = table.querySelectorAll("colgroup > col");
+            for (var ci = 0; ci < allThEls.length; ci++) {
+              var cw = allThEls[ci].getBoundingClientRect().width || 150;
+              if (allColEls[ci]) allColEls[ci].style.width = cw + "px";
+              // Also freeze on the <th> itself — sticky headers ignore <col> live changes
+              allThEls[ci].style.width    = cw + "px";
+              allThEls[ci].style.maxWidth = cw + "px";
               if (visibleFields[ci]) self._colWidths[visibleFields[ci].name] = cw;
             }
 
-            // ── Step 2: switch table to fixed layout ──
+            // ── Step 2: switch to fixed layout ──
             table.style.tableLayout = "fixed";
             table.style.width       = "max-content";
 
-            // ── Step 3: track drag on this specific column ──
+            // ── Step 3: track this column's drag ──
             var myColEl = document.getElementById("_ft_col_" + _safeKey(f.name));
             var startX  = e.clientX;
-            var startW  = myColEl ? (parseFloat(myColEl.style.width) || 150) : 150;
+            var startW  = parseFloat(thEl.style.width) || 150;
 
             handle.style.background = "#3B82F6";
 
@@ -478,6 +484,9 @@ looker.plugins.visualizations.add({
               var newW = Math.max(40, startW + ev.clientX - startX);
               self._colWidths[f.name] = newW;
               if (myColEl) myColEl.style.width = newW + "px";
+              // Update header directly — <col> change alone won't move a sticky <th>
+              thEl.style.width    = newW + "px";
+              thEl.style.maxWidth = newW + "px";
             }
             function onUp() {
               handle.style.background = "transparent";
@@ -487,13 +496,10 @@ looker.plugins.visualizations.add({
             document.addEventListener("mousemove", onMove);
             document.addEventListener("mouseup", onUp);
           };
-        })(field));
+        })(field, th));
 
         th.appendChild(handle);
-
-        // Mark th for width calculation reference
         th.classList.add("_ft_th_" + _safeKey(field.name));
-
         hRow.appendChild(th);
       });
 
