@@ -354,24 +354,33 @@ looker.plugins.visualizations.add({
       // ---- TABLE ----
       var table = document.createElement("table");
 
-      // Determine if any column has a fixed width
-      var hasFixedCols = visibleFields.some(function (f) { return _effectiveWidth(f) > 0; });
+      // Use fixed layout only when the user has already dragged-resized at least one column.
+      // Config widths are expressed as min-width on <th> (works with auto layout without
+      // collapsing un-configured columns). Fixed layout is activated on first drag, at which
+      // point ALL rendered widths are snapshotted into self._colWidths.
+      var hasResizedCols = Object.keys(self._colWidths).some(function (k) { return self._colWidths[k] > 0; });
+
       table.style.cssText = [
-        "width:" + (hasFixedCols ? "max-content" : "100%"),
+        "width:" + (hasResizedCols ? "max-content" : "100%"),
+        "min-width:100%",
         "border-collapse:collapse",
         "font-size:" + fontSize + "px",
         "font-family:" + fontFamily,
-        "table-layout:" + (hasFixedCols ? "fixed" : "auto"),
-        "min-width:100%"
+        "table-layout:" + (hasResizedCols ? "fixed" : "auto")
       ].join(";");
 
-      // Colgroup (needed for drag resize to work)
+      // Colgroup — widths only set when in fixed-layout mode (after first drag)
       var cg = document.createElement("colgroup");
       visibleFields.forEach(function (field) {
         var col = document.createElement("col");
         col.id = "_ft_col_" + _safeKey(field.name);
-        var w = _effectiveWidth(field);
-        if (w > 0) col.style.width = w + "px";
+        if (hasResizedCols) {
+          // Use drag-stored width, fall back to config, then to 150px default
+          var w = self._colWidths[field.name] > 0
+                    ? self._colWidths[field.name]
+                    : (Number(config["col_" + _safeKey(field.name) + "_width"]) || 150);
+          col.style.width = w + "px";
+        }
         cg.appendChild(col);
       });
       table.appendChild(cg);
@@ -386,6 +395,10 @@ looker.plugins.visualizations.add({
         var isActive = self._sortField === field.name;
         var align = _effectiveAlign(field);
 
+        // Config width expressed as min-width (works with auto layout,
+        // no risk of collapsing adjacent columns)
+        var cfgMinW = Number(config["col_" + _safeKey(field.name) + "_width"]) || 0;
+
         th.style.cssText = [
           "padding:9px 24px 9px 12px",  // right padding for resize handle
           "font-size:12px",
@@ -399,8 +412,9 @@ looker.plugins.visualizations.add({
           "user-select:none",
           "text-align:" + align,
           "position:relative",
-          "overflow:hidden"
-        ].join(";");
+          "overflow:hidden",
+          cfgMinW > 0 ? "min-width:" + cfgMinW + "px" : ""
+        ].filter(Boolean).join(";");
 
         // Label + sort icon
         var lbl = _effectiveLabel(field);
@@ -436,21 +450,35 @@ looker.plugins.visualizations.add({
           return function (e) {
             e.preventDefault();
             e.stopPropagation();
-            var startX   = e.clientX;
-            var colEl    = document.getElementById("_ft_col_" + _safeKey(f.name));
-            var thEl     = colEl && table.querySelector("th._ft_th_" + _safeKey(f.name));
-            var startW   = _effectiveWidth(f) || (thEl ? thEl.offsetWidth : 150);
+
+            // ── Step 1: snapshot every column's CURRENT rendered width ──
+            // Must happen BEFORE switching to fixed layout.
+            // With table-layout:auto, col[width] is just a hint — the browser
+            // enforces min-content and ignores shrink requests.
+            // Freezing all widths first lets us shrink any column freely.
+            var allThs  = table.querySelectorAll("thead > tr > th");
+            var allCols = table.querySelectorAll("colgroup > col");
+            for (var ci = 0; ci < allThs.length; ci++) {
+              var cw = allThs[ci].getBoundingClientRect().width;
+              if (allCols[ci]) allCols[ci].style.width = cw + "px";
+              if (visibleFields[ci]) self._colWidths[visibleFields[ci].name] = cw;
+            }
+
+            // ── Step 2: switch table to fixed layout ──
+            table.style.tableLayout = "fixed";
+            table.style.width       = "max-content";
+
+            // ── Step 3: track drag on this specific column ──
+            var myColEl = document.getElementById("_ft_col_" + _safeKey(f.name));
+            var startX  = e.clientX;
+            var startW  = myColEl ? (parseFloat(myColEl.style.width) || 150) : 150;
 
             handle.style.background = "#3B82F6";
 
             function onMove(ev) {
               var newW = Math.max(40, startW + ev.clientX - startX);
               self._colWidths[f.name] = newW;
-              if (colEl) {
-                colEl.style.width = newW + "px";
-                table.style.tableLayout = "fixed";
-                table.style.width = "max-content";
-              }
+              if (myColEl) myColEl.style.width = newW + "px";
             }
             function onUp() {
               handle.style.background = "transparent";
