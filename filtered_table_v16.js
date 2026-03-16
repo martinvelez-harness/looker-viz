@@ -257,7 +257,7 @@ looker.plugins.visualizations.add({
         "display:flex",
         "align-items:center",
         "gap:10px",
-        "padding:8px 16px",
+        "padding:12px 16px 16px",
         "background:" + headerBg,
         "border-bottom:1px solid " + borderColor,
         "flex-shrink:0",
