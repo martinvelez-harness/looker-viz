@@ -280,13 +280,54 @@ looker.plugins.visualizations.add({
 
     // --------------------------------------------------
     // Calculate totals for summary
+    // Prefer server-side totals from queryResponse.totals_data when available.
+    // totals_data is populated when Looker's "Totals" row is enabled — it reflects
+    // the true aggregate across ALL rows, not just the current row limit.
     // --------------------------------------------------
     var seriesTotals = {};
     for (var st = 0; st < seriesKeys.length; st++) seriesTotals[seriesKeys[st]] = 0;
 
-    for (var di = 0; di < chartData.length; di++) {
-      for (var dj = 0; dj < chartData[di].stacks.length; dj++) {
-        seriesTotals[chartData[di].stacks[dj].key] += chartData[di].stacks[dj].value;
+    var totalsData = queryResponse.totals_data;
+    var usedServerTotals = false;
+
+    if (totalsData) {
+      if (hasPivots) {
+        // Pivoted: totals_data[measure_name][pivot_key] = { value, rendered }
+        var anyPivotFound = false;
+        for (var tpi = 0; tpi < seriesKeys.length; tpi++) {
+          var tsk = seriesKeys[tpi];
+          var pivotTotal = 0;
+          for (var tmi = 0; tmi < measures.length; tmi++) {
+            var totCellP = totalsData[measures[tmi].name];
+            if (totCellP && totCellP[tsk] != null) {
+              pivotTotal += Number(totCellP[tsk].value) || 0;
+              anyPivotFound = true;
+            }
+          }
+          seriesTotals[tsk] = pivotTotal;
+        }
+        if (anyPivotFound) usedServerTotals = true;
+      } else {
+        // No pivots: series keys are measure names
+        // totals_data[measure_name] = { value, rendered }
+        var anyFound = false;
+        for (var tsi = 0; tsi < seriesKeys.length; tsi++) {
+          var totCell2 = totalsData[seriesKeys[tsi]];
+          if (totCell2 != null) {
+            seriesTotals[seriesKeys[tsi]] = Number(totCell2.value) || 0;
+            anyFound = true;
+          }
+        }
+        if (anyFound) usedServerTotals = true;
+      }
+    }
+
+    // Fallback: sum from visible rows (used when Totals row is disabled)
+    if (!usedServerTotals) {
+      for (var di = 0; di < chartData.length; di++) {
+        for (var dj = 0; dj < chartData[di].stacks.length; dj++) {
+          seriesTotals[chartData[di].stacks[dj].key] += chartData[di].stacks[dj].value;
+        }
       }
     }
 
@@ -353,20 +394,37 @@ looker.plugins.visualizations.add({
       }
 
       // Optional ratio KPI
-      // Formula A (no denominator key): numerator_series / grand_total
-      // Formula B (denominator key set): numerator_series / (numerator_series + denominator_series)
-      // Example B: Coverage Rate = total_covered_usage / (total_covered_usage + total_ondemand_usage)
+      // Mode A — value_from_totals: numerator field IS the ratio (e.g. coverage_rate table calc).
+      //   Read totals_data[numerator].value directly — Looker already computed the weighted avg.
+      //   Use when the measure is a pre-computed percentage, NOT a sum-able quantity.
+      // Mode B — formula: numerator_series / (numerator_series + denominator_series) or / grand_total.
+      //   Use when you want the viz to compute the ratio from two raw sum measures.
       if (config.ratio_kpi_show === "true" && config.ratio_kpi_numerator) {
-        var ratioNum = seriesTotals[config.ratio_kpi_numerator] || 0;
-        var ratioDen;
-        if (config.ratio_kpi_denominator) {
-          ratioDen = ratioNum + (seriesTotals[config.ratio_kpi_denominator] || 0);
+        var ratioVal = null;
+        var ratioFmt = _resolveNamedFormat(config.ratio_kpi_format || "percent_1");
+
+        if (config.ratio_kpi_value_from_totals === "true") {
+          // Mode A: read the ratio value directly from the server Totals row
+          var ratioCellDirect = totalsData && totalsData[config.ratio_kpi_numerator];
+          if (ratioCellDirect != null) {
+            ratioVal = Number(ratioCellDirect.value) || 0;
+          } else {
+            // Fallback: use seriesTotals if totals_data not available
+            ratioVal = seriesTotals[config.ratio_kpi_numerator] || 0;
+          }
         } else {
-          ratioDen = grandTotal;
+          // Mode B: compute ratio from two series totals
+          var ratioNum = seriesTotals[config.ratio_kpi_numerator] || 0;
+          var ratioDen;
+          if (config.ratio_kpi_denominator) {
+            ratioDen = ratioNum + (seriesTotals[config.ratio_kpi_denominator] || 0);
+          } else {
+            ratioDen = grandTotal;
+          }
+          if (ratioDen > 0) ratioVal = ratioNum / ratioDen;
         }
-        if (ratioDen > 0) {
-          var ratioVal = ratioNum / ratioDen;
-          var ratioFmt = _resolveNamedFormat(config.ratio_kpi_format || "percent_1");
+
+        if (ratioVal !== null) {
           summaryRow.appendChild(_createKpiEl(
             config.ratio_kpi_label || "Coverage Rate",
             _formatCompact(ratioVal, ratioFmt),
@@ -854,6 +912,11 @@ function _buildBaseOptions() {
       type: "string", label: "Ratio KPI | Format", display: "select",
       values: [{ "Percent (0)": "percent_0" }, { "Percent (1)": "percent_1" }, { "Percent (2)": "percent_2" }],
       default: "percent_1", section: "Summary", order: 95
+    },
+    ratio_kpi_value_from_totals: {
+      type: "string", label: "Ratio KPI | Read Value from Totals Row",
+      display: "select", values: [{ "No (compute from series)": "false" }, { "Yes (use server total directly)": "true" }],
+      default: "false", section: "Summary", order: 96
     },
 
     divider_color: {
