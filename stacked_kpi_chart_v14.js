@@ -116,11 +116,15 @@ looker.plugins.visualizations.add({
     var groups = [];
     var chartData = [];
 
+    var seriesFormats = {}; // per-series value_format from Looker field metadata
+
     if (hasPivots) {
       // Series = pivot values, groups = rows (non-pivot dim)
       for (var pi = 0; pi < pivots.length; pi++) {
         seriesKeys.push(pivots[pi].key);
         seriesLabels[pivots[pi].key] = pivots[pi].key;
+        // All pivot columns share the first measure's format
+        seriesFormats[pivots[pi].key] = measures.length > 0 ? (measures[0].value_format || null) : null;
       }
       var xDim = dimensions.length > 0 ? dimensions[0] : null;
 
@@ -151,6 +155,7 @@ looker.plugins.visualizations.add({
         var mf = measures[mi2];
         seriesKeys.push(mf.name);
         seriesLabels[mf.name] = mf.label_short || mf.label || mf.name;
+        seriesFormats[mf.name] = mf.value_format || null; // each measure has its own format
       }
       var xDim2 = dimensions.length > 0 ? dimensions[0] : null;
 
@@ -258,6 +263,14 @@ looker.plugins.visualizations.add({
     }
     if (!resolvedFmt) resolvedFmt = "#,##0";
 
+    // Returns the effective format for a given series key.
+    // When the user has set an explicit format in the viz config, that takes priority.
+    // Otherwise, falls back to the measure's own value_format from Looker.
+    function _seriesFmt(sk) {
+      if (vfSetting !== "auto") return resolvedFmt;
+      return seriesFormats[sk] || resolvedFmt;
+    }
+
     // Series colors
     var seriesColors = {};
     for (var ci = 0; ci < seriesKeys.length; ci++) {
@@ -330,7 +343,7 @@ looker.plugins.visualizations.add({
         var sColor = config["summary_" + skk + "_color"] || seriesColors[seriesKeys[ski]];
         summaryRow.appendChild(_createKpiEl(
           sLabel,
-          _formatCompact(seriesTotals[seriesKeys[ski]], resolvedFmt),
+          _formatCompact(seriesTotals[seriesKeys[ski]], _seriesFmt(seriesKeys[ski])),
           sColor,
           summarySize,
           summaryLabelSize,
