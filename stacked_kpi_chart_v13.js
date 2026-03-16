@@ -339,6 +339,33 @@ looker.plugins.visualizations.add({
         ));
       }
 
+      // Optional ratio KPI
+      // Formula A (no denominator key): numerator_series / grand_total
+      // Formula B (denominator key set): numerator_series / (numerator_series + denominator_series)
+      // Example B: Coverage Rate = total_covered_usage / (total_covered_usage + total_ondemand_usage)
+      if (config.ratio_kpi_show === "true" && config.ratio_kpi_numerator) {
+        var ratioNum = seriesTotals[config.ratio_kpi_numerator] || 0;
+        var ratioDen;
+        if (config.ratio_kpi_denominator) {
+          ratioDen = ratioNum + (seriesTotals[config.ratio_kpi_denominator] || 0);
+        } else {
+          ratioDen = grandTotal;
+        }
+        if (ratioDen > 0) {
+          var ratioVal = ratioNum / ratioDen;
+          var ratioFmt = _resolveNamedFormat(config.ratio_kpi_format || "percent_1");
+          summaryRow.appendChild(_createKpiEl(
+            config.ratio_kpi_label || "Coverage Rate",
+            _formatCompact(ratioVal, ratioFmt),
+            config.ratio_kpi_color || "#3B82F6",
+            summarySize,
+            summaryLabelSize,
+            summaryValueWeight,
+            summaryLabelWeight
+          ));
+        }
+      }
+
       container.appendChild(summaryRow);
 
       // Divider
@@ -524,13 +551,15 @@ looker.plugins.visualizations.add({
       xLbl.setAttribute("fill", "#6B7280");
       xLbl.setAttribute("font-family", fontFamily);
 
+      var rawLabel = chartData[bi].group;
       if (xRotation > 0) {
         xLbl.setAttribute("text-anchor", "end");
         xLbl.setAttribute("transform", "rotate(-" + xRotation + "," + xLblX + "," + xLblY + ")");
+        xLbl.textContent = rawLabel;
       } else {
         xLbl.setAttribute("text-anchor", "middle");
+        xLbl.textContent = _truncateLabel(rawLabel, barW, 11, fontFamily);
       }
-      xLbl.textContent = chartData[bi].group;
       svg.appendChild(xLbl);
     }
 
@@ -784,6 +813,36 @@ function _buildBaseOptions() {
       type: "string", label: "Custom Format", default: "",
       placeholder: "e.g. $#,##0.00", section: "Format", order: 2
     },
+    // -- Ratio KPI (e.g. Coverage Rate = numerator_series / grand_total) --
+    ratio_kpi_show: {
+      type: "string", label: "Ratio KPI | Show", display: "select",
+      values: [{ "No": "false" }, { "Yes": "true" }],
+      default: "false", section: "Summary", order: 90
+    },
+    ratio_kpi_label: {
+      type: "string", label: "Ratio KPI | Label", default: "Coverage Rate",
+      section: "Summary", order: 91
+    },
+    ratio_kpi_color: {
+      type: "string", label: "Ratio KPI | Color", default: "#3B82F6",
+      display: "color", section: "Summary", order: 92
+    },
+    ratio_kpi_numerator: {
+      type: "string", label: "Ratio KPI | Numerator (series key)",
+      default: "", placeholder: "e.g. ootb.total_covered_usage",
+      section: "Summary", order: 93
+    },
+    ratio_kpi_denominator: {
+      type: "string", label: "Ratio KPI | Denominator (series key, optional)",
+      default: "", placeholder: "Leave blank to use Grand Total as denominator",
+      section: "Summary", order: 94
+    },
+    ratio_kpi_format: {
+      type: "string", label: "Ratio KPI | Format", display: "select",
+      values: [{ "Percent (0)": "percent_0" }, { "Percent (1)": "percent_1" }, { "Percent (2)": "percent_2" }],
+      default: "percent_1", section: "Summary", order: 95
+    },
+
     divider_color: {
       type: "string", label: "Divider Color", default: "#E5E7EB",
       display: "color", section: "Format", order: 3
@@ -794,6 +853,30 @@ function _buildBaseOptions() {
       section: "Format", order: 4
     }
   };
+}
+
+// Truncates text to fit within maxPx pixels, appending "..." if needed.
+// Uses an offscreen canvas for accurate pixel measurement.
+function _truncateLabel(text, maxPx, fontSize, fontFamily) {
+  if (!text) return text;
+  if (!_truncateLabel._canvas) {
+    _truncateLabel._canvas = document.createElement("canvas");
+  }
+  var ctx = _truncateLabel._canvas.getContext("2d");
+  ctx.font = "normal " + fontSize + "px " + fontFamily;
+  if (ctx.measureText(text).width <= maxPx) return text;
+  var ellipsis = "\u2026"; // single "…" char — one glyph, no layout tricks needed
+  var ellipsisW = ctx.measureText(ellipsis).width;
+  var lo = 0, hi = text.length;
+  while (lo < hi) {
+    var mid = Math.floor((lo + hi + 1) / 2);
+    if (ctx.measureText(text.slice(0, mid)).width + ellipsisW <= maxPx) {
+      lo = mid;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return lo === 0 ? ellipsis : text.slice(0, lo) + ellipsis;
 }
 
 function _resolveNamedFormat(name) {
