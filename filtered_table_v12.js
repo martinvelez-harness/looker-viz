@@ -174,10 +174,12 @@ looker.plugins.visualizations.add({
 
     function _computeTotal(filteredRows) {
       if (!totalField) return null;
-      if (!totalFromFiltered) {
-        var td = queryResponse.totals_data;
-        if (td && td[totalField] != null) return Number(td[totalField].value) || 0;
-      }
+      // Always prefer server-side totals_data when available.
+      // Summing ratio/percentage fields row-by-row produces nonsense
+      // (e.g. 500 rows × 100% coverage = 50000%). The server total is authoritative.
+      var td = queryResponse.totals_data;
+      if (td && td[totalField] != null) return Number(td[totalField].value) || 0;
+      // Fallback: sum filtered rows (only when Totals row is disabled in the data panel)
       var sum = 0;
       filteredRows.forEach(function (row) {
         var cell = row[totalField];
@@ -354,33 +356,25 @@ looker.plugins.visualizations.add({
       // ---- TABLE ----
       var table = document.createElement("table");
 
-      // Use fixed layout only when the user has already dragged-resized at least one column.
-      // Config widths are expressed as min-width on <th> (works with auto layout without
-      // collapsing un-configured columns). Fixed layout is activated on first drag, at which
-      // point ALL rendered widths are snapshotted into self._colWidths.
-      var hasResizedCols = Object.keys(self._colWidths).some(function (k) { return self._colWidths[k] > 0; });
-
+      // Start with auto layout so the browser can compute natural column widths.
+      // After appending to the DOM we do a two-pass width application:
+      //   Pass 1 — measure every th's rendered width (getBoundingClientRect)
+      //   Pass 2 — apply drag / config widths on top of those natural widths,
+      //            then switch to fixed layout so widths are enforced exactly.
       table.style.cssText = [
-        "width:" + (hasResizedCols ? "max-content" : "100%"),
+        "width:100%",
         "min-width:100%",
         "border-collapse:collapse",
         "font-size:" + fontSize + "px",
         "font-family:" + fontFamily,
-        "table-layout:" + (hasResizedCols ? "fixed" : "auto")
+        "table-layout:auto"
       ].join(";");
 
-      // Colgroup — widths only set when in fixed-layout mode (after first drag)
+      // Colgroup — IDs only; widths applied after DOM append in the two-pass block
       var cg = document.createElement("colgroup");
       visibleFields.forEach(function (field) {
         var col = document.createElement("col");
         col.id = "_ft_col_" + _safeKey(field.name);
-        if (hasResizedCols) {
-          // Use drag-stored width, fall back to config, then to 150px default
-          var w = self._colWidths[field.name] > 0
-                    ? self._colWidths[field.name]
-                    : (Number(config["col_" + _safeKey(field.name) + "_width"]) || 150);
-          col.style.width = w + "px";
-        }
         cg.appendChild(col);
       });
       table.appendChild(cg);
@@ -395,10 +389,6 @@ looker.plugins.visualizations.add({
         var isActive = self._sortField === field.name;
         var align = _effectiveAlign(field);
 
-        // Config width expressed as min-width (works with auto layout,
-        // no risk of collapsing adjacent columns)
-        var cfgMinW = Number(config["col_" + _safeKey(field.name) + "_width"]) || 0;
-
         th.style.cssText = [
           "padding:9px 24px 9px 12px",  // right padding for resize handle
           "font-size:12px",
@@ -412,9 +402,8 @@ looker.plugins.visualizations.add({
           "user-select:none",
           "text-align:" + align,
           "position:relative",
-          "overflow:hidden",
-          cfgMinW > 0 ? "min-width:" + cfgMinW + "px" : ""
-        ].filter(Boolean).join(";");
+          "overflow:hidden"
+        ].join(";");
 
         // Label + sort icon
         var lbl = _effectiveLabel(field);
@@ -563,6 +552,31 @@ looker.plugins.visualizations.add({
 
       table.appendChild(tbody);
       tableWrap.appendChild(table);
+
+      // ---- Two-pass column width application ----
+      // Pass 1: read every column's natural rendered width.
+      // Pass 2: override with drag / config explicit widths, then lock to fixed layout.
+      // This ensures: (a) auto-width columns keep their natural fit,
+      //               (b) config/drag widths are applied exactly (can both grow AND shrink).
+      var allThs  = table.querySelectorAll("thead > tr > th");
+      var allCols = table.querySelectorAll("colgroup > col");
+      var hasExplicit = false;
+      for (var tpci = 0; tpci < visibleFields.length; tpci++) {
+        var tpf      = visibleFields[tpci];
+        var naturalW = allThs[tpci] ? allThs[tpci].getBoundingClientRect().width : 150;
+        var dragW    = self._colWidths[tpf.name] > 0 ? self._colWidths[tpf.name] : 0;
+        var cfgW     = Number(config["col_" + _safeKey(tpf.name) + "_width"]) || 0;
+        // Drag width takes priority; config width next; natural auto width as default.
+        var finalW   = dragW > 0 ? dragW : (cfgW > 0 ? cfgW : naturalW);
+        if (dragW > 0 || cfgW > 0) hasExplicit = true;
+        if (allCols[tpci]) allCols[tpci].style.width = finalW + "px";
+      }
+      // Only switch to fixed layout when at least one column has an explicit width.
+      // Fixed layout enforces the <col> widths exactly (allows shrinking too).
+      if (hasExplicit) {
+        table.style.tableLayout = "fixed";
+        table.style.width       = "max-content";
+      }
     }
 
     // Initial render
@@ -655,6 +669,16 @@ function _buildOptions(allFields, dimensions) {
     return obj;
   }));
 
+  // Total field: only non-list measures (dimensions and list-type fields can't be summed)
+  var dimNames = dimensions.map(function (f) { return f.name; });
+  var measureOpts = noneOpt.concat(allFields.filter(function (f) {
+    return dimNames.indexOf(f.name) === -1 && f.type !== "list";
+  }).map(function (f) {
+    var obj = {};
+    obj[f.label_short || f.label || f.name] = f.name;
+    return obj;
+  }));
+
   var opts = {
 
     // ---- Filter ----
@@ -704,7 +728,7 @@ function _buildOptions(allFields, dimensions) {
     },
     total_field: {
       type: "string", label: "Total Field", display: "select",
-      values: fieldOpts, default: "",
+      values: measureOpts, default: "",
       section: "Total", order: 2
     },
     total_label: {
