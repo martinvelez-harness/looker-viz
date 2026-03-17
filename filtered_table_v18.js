@@ -136,14 +136,18 @@ looker.plugins.visualizations.add({
       self._lastFilterKey = filterStateKey;
     }
 
-    // Visible columns: filter by Show toggle, then sort by drag-reorder order
-    var visibleFields = allFields.filter(function (f) {
-      return config["col_" + _safeKey(f.name) + "_show"] !== "false";
-    }).sort(function (a, b) {
-      var ai = self._columnOrder.indexOf(a.name);
-      var bi = self._columnOrder.indexOf(b.name);
-      return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
-    });
+    // _getVisibleFields() — recomputes on every call using the CURRENT self._columnOrder.
+    // Must be called inside renderTable() (not cached) so drag-reorder takes effect
+    // immediately without a query re-run.
+    function _getVisibleFields() {
+      return allFields.filter(function (f) {
+        return config["col_" + _safeKey(f.name) + "_show"] !== "false";
+      }).sort(function (a, b) {
+        var ai = self._columnOrder.indexOf(a.name);
+        var bi = self._columnOrder.indexOf(b.name);
+        return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
+      });
+    }
 
     // ------------------------------------------------
     // Core helpers
@@ -337,35 +341,38 @@ looker.plugins.visualizations.add({
 
       // CSV export button
       var csvBtn = document.createElement("button");
-      csvBtn.textContent = "↓ CSV";
+      csvBtn.innerHTML = "&#x2193;&nbsp;Export CSV";
       csvBtn.title = "Export filtered rows as CSV";
       csvBtn.style.cssText = [
-        "font-size:12px",
+        "font-size:13px",
+        "font-weight:600",
         "font-family:" + fontFamily,
-        "padding:4px 10px",
-        "border:1px solid " + borderColor,
-        "border-radius:6px",
-        "background:white",
-        "color:#374151",
+        "padding:7px 16px",
+        "border:none",
+        "border-radius:8px",
+        "background:#3B82F6",
+        "color:white",
         "cursor:pointer",
         "white-space:nowrap",
-        "line-height:1.5",
-        "flex-shrink:0"
+        "line-height:1.4",
+        "flex-shrink:0",
+        "letter-spacing:0.01em"
       ].join(";");
-      csvBtn.addEventListener("mouseenter", function () { csvBtn.style.background = "#F3F4F6"; });
-      csvBtn.addEventListener("mouseleave", function () { csvBtn.style.background = "white"; });
+      csvBtn.addEventListener("mouseenter", function () { csvBtn.style.background = "#2563EB"; });
+      csvBtn.addEventListener("mouseleave", function () { csvBtn.style.background = "#3B82F6"; });
       csvBtn.addEventListener("click", function () {
+        var exportFields = _getVisibleFields(); // current order at time of click
         var filtered = _applyFilter(data);
         var sorted   = _sortRows(filtered, self._sortField, self._sortDir);
         var BOM = "\uFEFF"; // UTF-8 BOM — makes Excel open the file correctly
         var lines = [];
         // Header row
-        lines.push(visibleFields.map(function (f) {
+        lines.push(exportFields.map(function (f) {
           return '"' + _effectiveLabel(f).replace(/"/g, '""') + '"';
         }).join(","));
         // Data rows — use rendered/formatted values, same as what's visible in the table
         sorted.forEach(function (row) {
-          lines.push(visibleFields.map(function (f) {
+          lines.push(exportFields.map(function (f) {
             var val = _cellText(row[f.name], f);
             return '"' + String(val).replace(/"/g, '""') + '"';
           }).join(","));
@@ -398,6 +405,10 @@ looker.plugins.visualizations.add({
     // ------------------------------------------------
     function renderTable() {
       tableWrap.innerHTML = "";
+
+      // Recompute visible fields with the CURRENT column order so drag-reorder
+      // takes effect immediately (self._columnOrder may have changed since updateAsync ran).
+      var visibleFields = _getVisibleFields();
 
       var filtered = _applyFilter(data);
       var sorted   = _sortRows(filtered, self._sortField, self._sortDir);
