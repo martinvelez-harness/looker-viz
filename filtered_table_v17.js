@@ -112,18 +112,22 @@ looker.plugins.visualizations.add({
     var filterFieldObj = _findField(allFields, filterField);
     var totalFieldObj  = _findField(allFields, totalField);
 
-    // Visible columns (respecting Series tab "Show" toggle)
     var self = this;
-    var visibleFields = allFields.filter(function (f) {
-      return config["col_" + _safeKey(f.name) + "_show"] !== "false";
-    });
 
     // ------------------------------------------------
-    // Persistent state
+    // Persistent state (must be before visibleFields, which uses _columnOrder)
     // ------------------------------------------------
     if (self._sortField  === undefined) self._sortField = null;
     if (self._sortDir    === undefined) self._sortDir   = "asc";
-    if (!self._colWidths) self._colWidths = {};
+    if (!self._colWidths)    self._colWidths = {};
+    if (!self._columnOrder) {
+      self._columnOrder = allFields.map(function (f) { return f.name; });
+    } else {
+      // Append any fields not yet in the order (e.g. explore was modified)
+      allFields.forEach(function (f) {
+        if (self._columnOrder.indexOf(f.name) === -1) self._columnOrder.push(f.name);
+      });
+    }
 
     // Reset filter value when config changes
     var filterStateKey = filterField + "|" + filterDefault;
@@ -131,6 +135,15 @@ looker.plugins.visualizations.add({
       self._filterValue   = filterDefault;
       self._lastFilterKey = filterStateKey;
     }
+
+    // Visible columns: filter by Show toggle, then sort by drag-reorder order
+    var visibleFields = allFields.filter(function (f) {
+      return config["col_" + _safeKey(f.name) + "_show"] !== "false";
+    }).sort(function (a, b) {
+      var ai = self._columnOrder.indexOf(a.name);
+      var bi = self._columnOrder.indexOf(b.name);
+      return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
+    });
 
     // ------------------------------------------------
     // Core helpers
@@ -322,6 +335,54 @@ looker.plugins.visualizations.add({
         barEl.appendChild(totalWrap);
       }
 
+      // CSV export button
+      var csvBtn = document.createElement("button");
+      csvBtn.textContent = "↓ CSV";
+      csvBtn.title = "Export filtered rows as CSV";
+      csvBtn.style.cssText = [
+        "font-size:12px",
+        "font-family:" + fontFamily,
+        "padding:4px 10px",
+        "border:1px solid " + borderColor,
+        "border-radius:6px",
+        "background:white",
+        "color:#374151",
+        "cursor:pointer",
+        "white-space:nowrap",
+        "line-height:1.5",
+        "flex-shrink:0"
+      ].join(";");
+      csvBtn.addEventListener("mouseenter", function () { csvBtn.style.background = "#F3F4F6"; });
+      csvBtn.addEventListener("mouseleave", function () { csvBtn.style.background = "white"; });
+      csvBtn.addEventListener("click", function () {
+        var filtered = _applyFilter(data);
+        var sorted   = _sortRows(filtered, self._sortField, self._sortDir);
+        var BOM = "\uFEFF"; // UTF-8 BOM — makes Excel open the file correctly
+        var lines = [];
+        // Header row
+        lines.push(visibleFields.map(function (f) {
+          return '"' + _effectiveLabel(f).replace(/"/g, '""') + '"';
+        }).join(","));
+        // Data rows — use rendered/formatted values, same as what's visible in the table
+        sorted.forEach(function (row) {
+          lines.push(visibleFields.map(function (f) {
+            var val = _cellText(row[f.name], f);
+            return '"' + String(val).replace(/"/g, '""') + '"';
+          }).join(","));
+        });
+        var csv  = BOM + lines.join("\r\n");
+        var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        var url  = URL.createObjectURL(blob);
+        var a    = document.createElement("a");
+        a.href   = url;
+        a.setAttribute("download", (config.csv_filename || "export") + ".csv");
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+      barEl.appendChild(csvBtn);
+
       container.appendChild(barEl);
     }
 
@@ -443,6 +504,51 @@ looker.plugins.visualizations.add({
           renderTable();
         });
 
+        // ---- Drag-to-reorder columns ----
+        // Click = sort (no movement). Drag = reorder (mouse moves while held).
+        // HTML5 DnD handles the disambiguation automatically.
+        th.setAttribute("draggable", "true");
+
+        th.addEventListener("dragstart", (function (f) {
+          return function (e) {
+            e.dataTransfer.setData("text/plain", f.name);
+            e.dataTransfer.effectAllowed = "move";
+            th.style.opacity = "0.45";
+          };
+        })(field));
+
+        th.addEventListener("dragend", function () {
+          th.style.opacity = "1";
+          th.style.boxShadow = "";
+        });
+
+        th.addEventListener("dragover", function (e) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          th.style.boxShadow = "inset 3px 0 0 #3B82F6"; // blue left border = drop target
+        });
+
+        th.addEventListener("dragleave", function () {
+          th.style.boxShadow = "";
+        });
+
+        th.addEventListener("drop", (function (f) {
+          return function (e) {
+            e.preventDefault();
+            th.style.boxShadow = "";
+            var fromName = e.dataTransfer.getData("text/plain");
+            if (!fromName || fromName === f.name) return;
+            var order   = self._columnOrder.slice();
+            var fromIdx = order.indexOf(fromName);
+            var toIdx   = order.indexOf(f.name);
+            if (fromIdx === -1 || toIdx === -1) return;
+            order.splice(fromIdx, 1);
+            order.splice(toIdx, 0, fromName);
+            self._columnOrder = order;
+            renderTable();
+          };
+        })(field));
+
         // ---- Drag-resize handle ----
         var handle = document.createElement("div");
         handle.style.cssText = [
@@ -450,6 +556,9 @@ looker.plugins.visualizations.add({
           "width:6px", "height:100%",
           "cursor:col-resize", "background:transparent", "z-index:4"
         ].join(";");
+        // Prevent column-resize handle from triggering the reorder drag
+        handle.setAttribute("draggable", "false");
+        handle.addEventListener("dragstart", function (e) { e.stopPropagation(); e.preventDefault(); });
 
         handle.addEventListener("mousedown", (function (f, thEl) {
           return function (e) {
@@ -801,6 +910,11 @@ function _buildOptions(allFields, dimensions) {
       type: "string", label: "Font Family",
       default: "'Inter','Helvetica Neue',Arial,sans-serif",
       section: "Format", order: 7
+    },
+    csv_filename: {
+      type: "string", label: "CSV Export Filename (no extension)",
+      default: "export", placeholder: "e.g. underutilized_commitments",
+      section: "Format", order: 8
     }
   };
 
